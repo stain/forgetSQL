@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-__version__ = "0.5"
+__version__ = "0.5.1"
 
 ## Distributed under LGPL
 ## (c) Stian Søiland 2002-2003
@@ -20,10 +20,7 @@ except:
 try:
   True,False
 except NameError:
-  raise "At least Python 2.2.1 required, no True/False found"
-  # They are needed because databases tend to differenciate 
-  # between boolean values and integers, so we need seperate
-  # symbols.
+  (True,False) = (1==1, 0==1)
 
 import weakref
 

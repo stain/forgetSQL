@@ -10,7 +10,7 @@ if os.geteuid() == 0:
     os.umask(0022)
 
 setup(name="forgetSQL",
-      version="0.5",
+      version="0.5.1",
       author="Stian Soiland",
       author_email="stian@soiland.no",
       url="http://forgetsql.sourceforge.net/",
