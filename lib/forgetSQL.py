@@ -7,6 +7,11 @@
 ## http://forgetsql.sourceforge.net/
 
 ## $Log$
+## Revision 1.11  2004/03/03 13:44:33  stain
+## DateTimeDelta objects were stringified as
+## '14:00:00:00.0' for 14 days, and PostgreSQL didn't like that.
+## Changed to more approriate '14 00:00:00.0'.
+##
 ## Revision 1.10  2003/10/08 14:53:48  stain
 ## self._new forces saveDB
 ##
@@ -728,11 +733,15 @@ My fields: %s""" % (selectfields, cls._sqlFields)
     for field in fields:
       value = getattr(self, field)
       # First some dirty datatype hacks
-      if DateTime and type(value) in \
-         (DateTime.DateTimeType, DateTime.DateTimeDeltaType):
+      if DateTime and type(value) == DateTime.DateTimeType:
         # stupid psycopg does not support it's own return type..
         # lovely..
         value = str(value)
+      if DateTime and type(value) == DateTime.DateTimeDeltaType:
+        # Format delta as days, hours, minutes seconds
+        # NOTE: includes value.second directly to get the
+        # whole floating number 
+        value = value.strftime("%d %H:%M:") + str(value.second)
       if value is True or value is False:
         # We must store booleans as 't' and 'f' ...  
         value = value and 't' or 'f'
