@@ -18,7 +18,7 @@ except:
 try:
   True,False
 except NameError:
-  (True, False) = (1,0)
+  raise "True/False needed, too old Python?"
 
 class NotFound(exceptions.Exception):
   pass
@@ -77,10 +77,6 @@ class Forgetter:
                 with autocommit turned on. (Transactions are not
                 within the scope of this module yet)
 
-                A sample database.py which takes care of restoring
-                connections and so on is included for your 
-                convenience.
-
                 Python 2.2 (iterators, methodclasses)
   """
   # Will be 1 once prepare() is called
@@ -131,7 +127,7 @@ class Forgetter:
   _sqlLinks = {}
 
   # Order by this attribute by default, if specified
-  # _orderBy = 'name'
+  # _orderBy = 'name' - this could also be a tupple
   _orderBy = None
 
   # _userClasses can be used to trigger creation of a field 
@@ -178,9 +174,17 @@ class Forgetter:
   #}
   _descriptions = {}
 
-  def cursor(self):
-    raise "cursor method undefined, no database connection could be made"
+  def cursor(cls):
+    try:
+      import database
+      return database.cursor()
+    except:  
+      raise "cursor method undefined, no database connection could be made"
+  cursor = classmethod(cursor)  
 
+  # a reference to the database module used, ie. 
+  # MySQLdb, psycopg etc.
+  _dbModule = None
  
   def __init__(self, id=None):
     """Initialize, possibly with a database id. 
@@ -424,7 +428,13 @@ class Forgetter:
         sql += "\nWHERE\n  "
         sql += ' AND\n  '.join(tempWhere) 
       if operation == 'SELECTALL' and orderBy:
-        sql += '\nORDER BY\n  ' + cls._sqlFields[orderBy]
+        sql += '\nORDER BY\n  '
+        if type(orderBy) in (types.TupleType, types.ListType):
+          orderBy = [cls._sqlFields[x] for x in orderBy]
+          orderBy = ',\n   '.join(orderBy)
+        else:
+          orderBy = cls._sqlFields[orderBy]
+        sql += orderBy
       return (sql, fields)
         
     elif operation in ('INSERT', 'UPDATE'):
@@ -499,7 +509,7 @@ class Forgetter:
 
   _nextSequence = classmethod(_nextSequence)
  
-  def _loadFromRow(self, result, fields):
+  def _loadFromRow(self, result, fields, cursor):
     """Load from a database row, described by fields.
        fields should be the attribute names that 
        will be set. Note that userclasses will be
@@ -507,6 +517,9 @@ class Forgetter:
     position = 0
     for elem in fields:
       value = result[position]
+      valueType = cursor.description[position][1]
+      if valueType == self._dbModule.BOOLEAN and value not in (True, False):
+        value = value and True or False
       if value and self._userClasses.has_key(elem):
         userClass = self._userClasses[elem]
         # create an instance
@@ -526,7 +539,7 @@ class Forgetter:
     curs.close()
     if not result:
       raise NotFound, self._getID()
-    self._loadFromRow(result, fields)  
+    self._loadFromRow(result, fields, curs)  
     self._updated = time.time()
   
   def _saveDB(self):
@@ -558,6 +571,10 @@ class Forgetter:
         # stupid psycopg does not support it's own return type..
         # lovely..
         value = str(value)
+
+      if value is True or value is False:
+        # We must store booleans as 't' and 'f' ...  
+        value = value and 't' or 'f'
       if isinstance(value, Forgetter):
         # It's another object, we store only the ID
         if value._new:
@@ -620,7 +637,7 @@ class Forgetter:
         result._setID(ids)
       else:  
         result = forgetter(ids)
-      result._loadFromRow(row, fields)
+      result._loadFromRow(row, fields, curs)
       result._updated = fetchedAt
       return result
     
