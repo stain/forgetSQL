@@ -590,7 +590,9 @@ My fields: %s""" % (selectfields, cls._sqlFields)
     for elem in fields:
       value = result[position]
       valueType = cursor.description[position][1]
-      if valueType == self._dbModule.BOOLEAN and (value is not True or value is not False):
+      if hasattr(self._dbModule, 'BOOLEAN') and \
+          valueType == self._dbModule.BOOLEAN and \
+          (value is not True or value is not False):
         # convert to a python boolean
         value = value and True or False
       if value and self._userClasses.has_key(elem):
