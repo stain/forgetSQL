@@ -121,10 +121,10 @@ class Forgetter:
   # When using several tables, you should include a
   # 'link' statement, displaying which fields link the
   # two tables together. Note that these are sql names.
-  #  _sqlLinks = {
-  #    'shop_id': 'address.shop_id',
-  #  }
-  _sqlLinks = {}
+  #  _sqlLinks = (
+  #    ('shop_id', 'address.shop_id'),
+  #  )
+  _sqlLinks = ()
 
   # Order by this attribute by default, if specified
   # _orderBy = 'name' - this could also be a tupple
@@ -793,9 +793,9 @@ def prepareClasses(locals):
     # Update all fields with proper names
     for (field, sqlfield) in forgetter._sqlFields.items():
       forgetter._sqlFields[field] = forgetter._checkTable(sqlfield)
-   
+    
     newLinks = []
-    for linkpair in forgetter._sqlLinks.items():
+    for linkpair in forgetter._sqlLinks:
       (link1, link2) = linkpair
       link1=forgetter._checkTable(link1)
       link2=forgetter._checkTable(link2)
