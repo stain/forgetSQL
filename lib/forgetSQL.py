@@ -479,7 +479,10 @@ class Forgetter:
     """
     if not name:
       # Assume it's tablename_primarykey_seq
-      name = cls._sqlFields['id'].replace('.','_') + '_seq'
+      if len(cls._sqlPrimary) <> 1:
+        raise "Could not guess sequence name for multi-primary-key"
+      primary = cls._sqlPrimary[0]
+      name = primary.replace('.','_') + '_seq'
       # Don't have . as a tablename or column name!
     curs = cls.cursor()
     curs.execute("SELECT nextval('%s')" % name)
