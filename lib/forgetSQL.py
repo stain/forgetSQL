@@ -7,6 +7,9 @@
 ## http://forgetsql.sourceforge.net/
 
 ## $Log$
+## Revision 1.10  2003/10/08 14:53:48  stain
+## self._new forces saveDB
+##
 ## Revision 1.9  2003/07/26 12:27:22  stain
 ## Some patches to make inserting work in MysqlForgetter again.
 ## Note that alot of type-checking-stuff is NOT done in MysqlForgetter,
@@ -447,6 +450,7 @@ class Forgetter(object):
     Override this method if you add properties
     not defined in _sqlFields"""
     self._resetID()
+    self._new = None
     self._updated = None
     self._changed = None
     self._values = {}
@@ -466,9 +470,13 @@ class Forgetter(object):
   
   def save(self):
     """Saves to database if anything has changed since last load"""
-    if (self._validID() and self._changed) or (self._updated and self._changed > self._updated):
+    if ( self._new or 
+         (self._validID() and self._changed) or 
+         (self._updated and self._changed > self._updated) ):
       # Don't save if we have not loaded existing data!
       self._saveDB()
+      return True
+    return False     
 
   def delete(self):
     """Marks this object for deletion in the database. 
