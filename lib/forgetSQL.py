@@ -6,9 +6,23 @@
 ## stian@soiland.no
 ## http://forgetsql.sourceforge.net/
 
+## $Log$
+## Revision 1.6  2003/07/11 12:34:01  stain
+## _sqlSequence defines the name of a tables sequence for
+## _getNextSequence.
+##
+## _getNextSequence includes _ after tablename, so the result is
+## table_column_seq, not tablecolumn_seq.
+##
+## The constructor of forgetters supports multiple values as multiple
+## parameters, not a tupple anymore. _getID() returns a tupple when
+## appropriate, as always, so myClass(self.reference._getID()) should
+## work...
+##
+
 import exceptions, time, re, types, pprint, sys
 
-from nav import database
+# from nav import database
 
 try:
     from mx import DateTime
@@ -126,6 +140,11 @@ class Forgetter:
   #  )
   _sqlLinks = ()
 
+  # The name of the sequence used by _nextSequence
+  # - if None, a guess will be made based on _sqlTable
+  # and _sqlPrimary.
+  _sqlSequence = None
+
   # Order by this attribute by default, if specified
   # _orderBy = 'name' - this could also be a tupple
   _orderBy = None
@@ -186,12 +205,12 @@ class Forgetter:
   # MySQLdb, psycopg etc.
   _dbModule = None
  
-  def __init__(self, id=None):
+  def __init__(self, *id):
     """Initialize, possibly with a database id. 
     Note that the object will not be loaded before you call load()."""
     self._values = {}
     self.reset()
-    if id is None:
+    if not id:
       self._resetID()
     else:  
       self._setID(id)
@@ -212,7 +231,7 @@ class Forgetter:
         for key in self._sqlPrimary:
           value = id[0]
           self.__dict__[key] = value
-          id = id[1:] # rest
+          id = id[1:] # rest, go revursive
       except IndexError:
         raise 'Not enough id fields, required: %s' % len(self._sqlPrimary)
     elif len(self._sqlPrimary) <= 1:
@@ -225,7 +244,20 @@ class Forgetter:
       
   def _getID(self):
     """Gets the ID values as a tupple annotated by sqlPrimary"""
-    return [self.__dict__[key] for key in self._sqlPrimary]
+    id = []
+    for key in self._sqlPrimary:
+      value = self.__dict__[key]
+      if isinstance(value, Forgetter):
+        # It's another object, we store only the ID
+        if value._new:
+          # It's a new object too, it must be saved!
+          value.save()
+        try:
+          (value,) = value._getID()
+        except:
+          raise "Unsupported: Part %s of %s primary key is a reference to %s, with multiple-primary-key %s " % (key, self.__class__, value.__class__, value)
+      id.append(value)
+    return id
 
   def _resetID(self):  
     """Resets all ID fields."""
@@ -408,7 +440,11 @@ class Forgetter:
             fields.append(field)
             sqlfields.append(sqlfield)
       if not fields:
-        raise "No fields defined, cannot create SQL"
+        # dirrrrrty!
+        raise """ERROR: No fields defined, cannot create SQL. 
+Maybe sqlPrimary is invalid?
+Fields asked: %s
+My fields: %s""" % (selectfields, cls._sqlFields)
         
       sql = "SELECT\n  "
       sql += ', '.join(sqlfields)  
@@ -495,12 +531,14 @@ class Forgetter:
      sequence name as an optional argument to _nextSequence)
     """
     if not name:
+      name = cls._sqlSequence
+    if not name:
       # Assume it's tablename_primarykey_seq
       if len(cls._sqlPrimary) <> 1:
         raise "Could not guess sequence name for multi-primary-key"
       primary = cls._sqlPrimary[0]
-      name = primary.replace('.','_') + '_seq'
-      # Don't have . as a tablename or column name!
+      name = '%s_%s_seq' % (cls._sqlTable, primary.replace('.','_'))
+      # Don't have . as a tablename or column name! =)
     curs = cls.cursor()
     curs.execute("SELECT nextval('%s')" % name)
     value = curs.fetchone()[0]
@@ -519,6 +557,7 @@ class Forgetter:
       value = result[position]
       valueType = cursor.description[position][1]
       if valueType == self._dbModule.BOOLEAN and value not in (True, False):
+        # convert to a python boolean
         value = value and True or False
       if value and self._userClasses.has_key(elem):
         userClass = self._userClasses[elem]
@@ -583,7 +622,7 @@ class Forgetter:
         try:  
           (value,) = value._getID()
         except:
-          raise "Can't reference multiple-primary-key: %s" % value
+          raise "Unsupported: Can't reference multiple-primary-key: %s" % value
       values.append(value)  
     cursor = self.cursor()
     cursor.execute(sql, values)
@@ -600,7 +639,7 @@ class Forgetter:
        when needed by the regular load()-autocall."""
     ids = cls.getAllIDs(where, orderBy=orderBy)
     # Instansiate a lot of them
-    return [cls(id) for id in ids]
+    return [cls(*id) for id in ids]
     
   getAll = classmethod(getAll)  
   
@@ -629,7 +668,10 @@ class Forgetter:
         return None
       row = rows[0]
       del rows[0]
-      idPositions = [fields.index(key) for key in cls._sqlPrimary]
+      try:
+        idPositions = [fields.index(key) for key in cls._sqlPrimary]
+      except ValueError:
+        raise "Bad sqlPrimary, should be a list or tupple: %s" % cls._sqlPrimary
       ids = [row[pos] for pos in idPositions]
       if useObject:
         result = useObject
@@ -713,6 +755,7 @@ class Forgetter:
       for (i_field, i_class) in forgetter._userClasses.items():
         if isinstance(self, i_class):
           field = i_field
+          break # first one found is ok :=)
     if not field:
       raise "No field found, check forgetter's _userClasses"
     sqlname = forgetter._sqlFields[field]  
