@@ -11,6 +11,11 @@ import exceptions, time, re, types, pprint, sys
 from nav import database
 
 try:
+    from mx import DateTime
+except:
+    DateTime = None
+
+try:
   True,False
 except NameError:
   (True, False) = (1,0)
@@ -19,7 +24,7 @@ class NotFound(exceptions.Exception):
   pass
 
 class Forgetter:
-  """Sql to object database wrapper.
+  """SQL to object database wrapper.
   Given a welldefined database, by subclassing Forgetter
   and supplying some attributes, you may wrap your SQL tables
   into objects that are easier to program with. 
@@ -125,7 +130,7 @@ class Forgetter:
   #  }
   _sqlLinks = {}
 
-  # Order by this attribute, if specified
+  # Order by this attribute by default, if specified
   # _orderBy = 'name'
   _orderBy = None
 
@@ -323,13 +328,13 @@ class Forgetter:
     """Marks this object for deletion in the database. 
        The object will then be reset and ready for use 
        again with a new id."""
-    (sql, ) = self._prepareSql("DELETE")
+    (sql, ) = self._prepareSQL("DELETE")
     curs = self.cursor()
     curs.execute(sql, self._getID())
     curs.close()
     self.reset()
     
-  def _prepareSql(cls, operation="SELECT", where=None, selectfields=None):
+  def _prepareSQL(cls, operation="SELECT", where=None, selectfields=None, orderBy=None):
     """Returns a sql for the given operation.
        Possible operations:
          SELECT     read data for this id
@@ -386,6 +391,8 @@ class Forgetter:
     # Convert where to a list if it is a string
     if type(where) in (types.StringType, types.UnicodeType):
       where = (where,)
+    if orderBy is None:
+      orderBy = cls._orderBy  
     
     if operation in ('SELECT', 'SELECTALL'):
       # Get the object fields and sql fields in the same
@@ -406,18 +413,18 @@ class Forgetter:
       if not tables:
         raise "REALITY ERROR: No tables defined"
       sql += ', '.join(tables)
-      temp = ["%s=%s" % linkPair for linkPair in cls._sqlLinks]
+      tempWhere = ["%s=%s" % linkPair for linkPair in cls._sqlLinks]
       # this MUST be here.
       if operation <> 'SELECTALL':
         for key in cls._sqlPrimary:
-          temp.append(cls._sqlFields[key] + "=%s")
+          tempWhere.append(cls._sqlFields[key] + "=%s")
       if where:
-        temp += where
-      if(temp):
+        tempWhere += where
+      if(tempWhere):
         sql += "\nWHERE\n  "
-        sql += ' AND\n  '.join(temp) 
-      if operation == 'SELECTALL' and cls._orderBy:
-        sql += '\nORDER BY\n  ' + cls._sqlFields[cls._orderBy]
+        sql += ' AND\n  '.join(tempWhere) 
+      if operation == 'SELECTALL' and orderBy:
+        sql += '\nORDER BY\n  ' + cls._sqlFields[orderBy]
       return (sql, fields)
         
     elif operation in ('INSERT', 'UPDATE'):
@@ -441,11 +448,11 @@ class Forgetter:
       if operation == 'UPDATE':
         sql += ',\n  '.join(set)    
         sql += '\nWHERE\n  '
-        temp = []
+        tempWhere = []
         for key in cls._sqlPrimary:
-          temp.append(cls._sqlFields[key] + "=%s")
+          tempWhere.append(cls._sqlFields[key] + "=%s")
           fields.append(key)
-        sql += ' AND\n  '.join(temp) 
+        sql += ' AND\n  '.join(tempWhere) 
       else:
         sql += ',\n  '.join(sqlfields)
         sql += ')\nVALUES (\n  '
@@ -460,15 +467,15 @@ class Forgetter:
         sql += " AND\n  ".join(where) 
       else:
         for key in cls._sqlPrimary:
-          temp = []
+          tempWhere = []
           for key in cls._sqlPrimary:
-            temp.append(cls._sqlFields[key] + "=%s")
-        sql += ' AND\n  '.join(temp) 
+            tempWhere.append(cls._sqlFields[key] + "=%s")
+        sql += ' AND\n  '.join(tempWhere) 
       return (sql, )      
     else:
       raise "Unknown operation", operation
       
-  _prepareSql = classmethod(_prepareSql)
+  _prepareSQL = classmethod(_prepareSQL)
   
   def _nextSequence(cls, name=None):
     """Returns a new sequence number for insertion in self._sqlTable.
@@ -512,7 +519,7 @@ class Forgetter:
     """Connects to the database to load myself"""
     if not self._validID():
       raise NotFound, self._getID()
-    (sql, fields) = self._prepareSql("SELECT")
+    (sql, fields) = self._prepareSQL("SELECT")
     curs = self.cursor()
     curs.execute(sql, self._getID()) 
     result = curs.fetchone()
@@ -542,10 +549,15 @@ class Forgetter:
       # MysqlForgetter below.
     else:
       operation = 'UPDATE'
-    (sql, fields) = self._prepareSql(operation)  
+    (sql, fields) = self._prepareSQL(operation)  
     values = []
     for field in fields:
       value = getattr(self, field)
+      if DateTime and type(value) in \
+         (DateTime.DateTimeType, DateTime.DateTimeDeltaType):
+        # stupid psycopg does not support it's own return type..
+        # lovely..
+        value = str(value)
       if isinstance(value, Forgetter):
         # It's another object, we store only the ID
         if value._new:
@@ -561,7 +573,7 @@ class Forgetter:
     # cursor.commit()
     cursor.close()
   
-  def getAll(cls, where=None):
+  def getAll(cls, where=None, orderBy=None):
     """Retrieves all the objects, possibly matching
        the where list of clauses, that will be AND-ed. 
        This will not load everything out
@@ -569,13 +581,14 @@ class Forgetter:
        of objects with only the ID inserted. 
        The data will be loaded from the objects
        when needed by the regular load()-autocall."""
-    ids = cls.getAllIDs(where)
+    ids = cls.getAllIDs(where, orderBy=orderBy)
     # Instansiate a lot of them
     return [cls(id) for id in ids]
     
   getAll = classmethod(getAll)  
   
-  def getAllIterator(cls, where=None, buffer=100, useObject=None):
+  def getAllIterator(cls, where=None, buffer=100, 
+                     useObject=None, orderBy=None):
     """Retrieves every object, possibly limitted by the where
        list of clauses that will be AND-ed). Since this an
        iterator is returned, only buffer rows are loaded
@@ -583,10 +596,11 @@ class Forgetter:
        to process all objects. If useObject is given, this object
        is returned each time, but with new data.
        """ 
-    (sql, fields) = cls._prepareSql("SELECTALL", where)
+    (sql, fields) = cls._prepareSQL("SELECTALL", where, orderBy=orderBy)
     curs = cls.cursor()
     fetchedAt = time.time()
     curs.execute(sql)
+
     # We might start eating memory at this point
     
     def getNext(rows=[]):
@@ -614,14 +628,15 @@ class Forgetter:
 
   getAllIterator = classmethod(getAllIterator)
 
-  def getAllIDs(cls, where=None):
+  def getAllIDs(cls, where=None, orderBy=None):
     """Retrives all the IDs, possibly matching the
        where clauses. Where should be some list of 
        where clauses that will be joined with AND). Note
        that the result might be tuples if this table
        has a multivalue _sqlPrimary."""
      
-    (sql, fields) = cls._prepareSql("SELECTALL", where, cls._sqlPrimary)
+    (sql, fields) = cls._prepareSQL("SELECTALL", where, 
+                                    cls._sqlPrimary, orderBy=orderBy)
     curs = cls.cursor()
     curs.execute(sql)
     # We might start eating memory at this point
@@ -640,14 +655,14 @@ class Forgetter:
     
   getAllIDs = classmethod(getAllIDs)
 
-  def getAllText(cls, where=None, SEPERATOR=' '):
+  def getAllText(cls, where=None, SEPERATOR=' ', orderBy=None):
     """Retrieves a list of of all possible instances of this class. 
     The list is composed of tupples in the format (id, description) -
     where description is a string composed by the fields from
     cls._shortView, joint with SEPERATOR.
 
     """
-    (sql, fields) = cls._prepareSql("SELECTALL", where)
+    (sql, fields) = cls._prepareSQL("SELECTALL", where, orderBy=orderBy)
     curs = cls.cursor()
     curs.execute(sql)
     # We might start eating memory at this point
@@ -668,12 +683,15 @@ class Forgetter:
 
   getAllText = classmethod(getAllText)  
   
-  def getChildren(self, forgetter, field=None):
+  def getChildren(self, forgetter, field=None, where=None, orderBy=None):
     """Returns the children that links to me. That means that I have
        to be listed in their _userClasses somehow. If field is
        specified, that field in my children is used as the pointer
        to me. Use this if you have multiple fields referring to
        my class."""
+    if type(where) in (types.StringType, types.UnicodeType):
+      where = (where,)
+      
     if not field:
       for (i_field, i_class) in forgetter._userClasses.items():
         if isinstance(self, i_class):
@@ -682,7 +700,12 @@ class Forgetter:
       raise "No field found, check forgetter's _userClasses"
     sqlname = forgetter._sqlFields[field]  
     myID = self._getID()[0] # assuming single-primary !
-    return forgetter.getAll("%s='%s'" % (sqlname, myID))
+    
+    whereList = ["%s='%s'" % (sqlname, myID)]
+    if where:
+      whereList.extend(where)
+    
+    return forgetter.getAll(whereList, orderBy=orderBy)
     
   def __repr__(self):
     return self.__class__.__name__ + ' %s' % self._getID()
@@ -703,7 +726,7 @@ class MysqlForgetter(Forgetter):
       self._resetID() # Ie. get a new one
     else:
       operation = 'UPDATE'
-    (sql, fields) = self._prepareSql(operation)  
+    (sql, fields) = self._prepareSQL(operation)  
     values = []
     for field in fields:
       value = getattr(self, field)
