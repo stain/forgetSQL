@@ -7,6 +7,14 @@
 ## http://forgetsql.sourceforge.net/
 
 ## $Log$
+## Revision 1.7  2003/07/11 12:50:30  stain
+## Previous commit forced getAllIterator to set the ID to [52] instead of
+## 52, due to initializing with cls(ids) instead of cls(*ids) - where ids
+## were a list.
+##
+## There miiight be several of these errors laying around, both here and in
+## your application.
+##
 ## Revision 1.6  2003/07/11 12:34:01  stain
 ## _sqlSequence defines the name of a tables sequence for
 ## _getNextSequence.
@@ -206,7 +214,9 @@ class Forgetter:
   _dbModule = None
  
   def __init__(self, *id):
-    """Initialize, possibly with a database id. 
+    """Initialize, possibly with a database id. A forgetter with
+    multivalue primary key (ie. _sqlPrimary more than 1 in length), 
+    may be initalized by using several parameters to this constructor.
     Note that the object will not be loaded before you call load()."""
     self._values = {}
     self.reset()
@@ -218,13 +228,7 @@ class Forgetter:
     """Sets the ID, id can be either a list, following the
        _sqlPrimary, or some other type, that will be set
        as the singleton ID (requires 1-length sqlPrimary).
-       
-       Note that this means you cannot have tuples as
-       primary keys directly into the database unless you
-       double pack then, ie dirty one:
-         _setID(((1,2),))
-       (I don't think anyone want's tupple fields in their database
-       as a primary key, though)
+     
        """
     if type(id) in (types.ListType, types.TupleType):
       try:
@@ -678,7 +682,7 @@ My fields: %s""" % (selectfields, cls._sqlFields)
         result.reset()
         result._setID(ids)
       else:  
-        result = forgetter(ids)
+        result = forgetter(*ids)
       result._loadFromRow(row, fields, curs)
       result._updated = fetchedAt
       return result
