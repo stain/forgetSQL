@@ -7,6 +7,11 @@
 ## http://forgetsql.sourceforge.net/
 
 ## $Log$
+## Revision 1.9  2003/07/26 12:27:22  stain
+## Some patches to make inserting work in MysqlForgetter again.
+## Note that alot of type-checking-stuff is NOT done in MysqlForgetter,
+## but I don't think they're that neccessary.
+##
 ## Revision 1.8  2003/07/23 09:05:55  anoncvs_jupiter-ftp
 ## forgetSQL-fixes
 ## ---------------
@@ -93,7 +98,7 @@
 ## work...
 ##
 
-import exceptions, time, re, types, pprint, sys
+import exceptions, time, re, types, sys
 
 # from nav import database
 
@@ -737,6 +742,7 @@ My fields: %s""" % (selectfields, cls._sqlFields)
     cursor.execute(sql, values)
     # cursor.commit()
     cursor.close()
+    self._new = False
   
   def getAll(cls, where=None, orderBy=None):
     """Retrieves all the objects, possibly matching
@@ -902,9 +908,8 @@ class MysqlForgetter(Forgetter):
     """Overloaded - we dont have nextval() in mysql"""
     # We're a "fresh" copy now
     self._updated = time.time()
-    if not self._validID():
+    if self._new:
       operation = 'INSERT'
-      self._resetID() # Ie. get a new one
     else:
       operation = 'UPDATE'
     (sql, fields) = self._prepareSQL(operation)  
@@ -925,9 +930,13 @@ class MysqlForgetter(Forgetter):
     cursor.execute(sql, values)
     # cursor.commit()
 
-    # Here's the mysql magic to get the new ID
-    self._setID(cursor.insert_id())
+    if not self._validID():
+      if not len(self._getID()) == 1:
+         raise "Can't retrieve auto-inserted ID for multiple-primary-key"
+      # Here's the mysql magic to get the new ID
+      self._setID(cursor.insert_id())
     cursor.close()
+    self._new = False
 
 def prepareClasses(locals):
   """Fix _userClasses and some stuff in classes.
