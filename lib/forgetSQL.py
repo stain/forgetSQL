@@ -7,6 +7,9 @@
 ## http://forgetsql.sourceforge.net/
 
 ## $Log$
+## Revision 1.12  2004/03/08 06:26:24  stain
+## Tried to update documenting comments..
+##
 ## Revision 1.11  2004/03/03 13:44:33  stain
 ## DateTimeDelta objects were stringified as
 ## '14:00:00:00.0' for 14 days, and PostgreSQL didn't like that.
@@ -163,22 +166,25 @@ class Forgetter(object):
   
   # Process all
   for user in User.getAllIterator():
+    # Access attributes
     print user.name
     print "Employed at:"
+    # Access the Employed-class/table
     print user.employed.name, user.employed.address
-    user.employed = None # fire him
+    # fire him, setting employed reference to SQL NULL
+    user.employed = None 
   
   # Retrieve some ID
   shop = Shop(552)
   shop.name = 'Corrected name'
-  shop.save()   # Not neccessary, called at garbage collection
+  shop.save()  # Save now instead of waiting for garbage collactor
   
-  # Include SQL where statements in selections
+  # Include SQL where-statements in selections
   myIDs = User.getAllIDs(("name='soiland'", 'salary > 5'))
   
 
-  Requirements: A module named 'database' exporting the method
-                cursor(), which should obviously return a cursor.
+  Requirements: The attributes 'cursor' and '_dbModule' should
+                be set from the outside.
                 The cursor should be DB 2.0 complient, preferably
                 with autocommit turned on. (Transactions are not
                 within the scope of this module yet)
@@ -207,9 +213,6 @@ class Forgetter(object):
   # If you reference other tables, don't forget to
   # modify _sqlLinks.
   # 
-  # Note that 'id' field MUST be defined unless
-  # _sqlPrimary is redefined.
-  # 
   #  _sqlFields = {
   #    'id':   'shop_id',
   #    'name': 'name',
@@ -224,6 +227,10 @@ class Forgetter(object):
   # 'id' is sufficient. It is legal to have 
   # multiple fields as primary key, but it won't work
   # properly with _userClasses and getChildren().
+  # 
+  # If your table is a link table or something, ALL fields
+  # should be in _sqlPrimary. (all fields are needed to define
+  # a unique row to be deleted/updated) 
   _sqlPrimary = ('id',)
   
   # When using several tables, you should include a
@@ -295,14 +302,16 @@ class Forgetter(object):
       raise "cursor method undefined, no database connection could be made"
   cursor = classmethod(cursor)  
 
-  # a reference to the database module used, ie. 
-  # MySQLdb, psycopg etc.
+  # a reference to the database module object used, ie. 
+  # MySQLdb, psycopg etc. 
+  # Use MyClass._dbModule = MySQLdb - not "MySQLdb"
+  # 
   _dbModule = None
   
   def __new__(cls, *args):
     if not hasattr(cls, '_cache'):
       cls._cache = {}
-    try:  # to implement 'goto' in Python
+    try:  # to implement 'goto' in Python.. UGH
       if not cls._cache.has_key(args):
         # unknown
         raise "NotFound"
