@@ -3,7 +3,7 @@ forgetSQL readme
 ================
 
 :Author: Stian Soiland <stian@soiland.no>
-:WWW: http://forgetsql.sourceforge.net/
+:WWW: http://soiland.no/software/forgetsql
 :License: GNU Lesser General Public License (LGPL)
           See the file COPYING for details.
 :Status: unfinished
@@ -13,18 +13,21 @@ forgetSQL readme
     table. The idea is to forget everything about SQL and just worrying
     about normal classes and objects.
 
-.. contents:: Contents
+Download
+========
+See the `Sourceforge file list <http://sourceforge.net/project/showfiles.php?group_id=71398&package_id=70952>`__ for the latest release.
 
+.. contents:: Contents
 
 Installation
 ============
 
 Installation of the forgetSQL module is pretty straight
-forward:
+forward::
     
     python setup.py install
 
-This will install forgetSQL.py into site-packages/ of your 
+This will install ``forgetSQL.py`` into ``site-packages/`` of your 
 Python distribution.
 
 
@@ -179,7 +182,7 @@ If you retrieve the objects several times, the constructor will return
 the same object the second time (unless some timeout has expired). This
 means that changes done to the object is immediately visible to all
 instances. This is to reflect normal behaviour in object oriented
-programming.  
+programming. Example::
 
     >>> stain = Account("stain")
     >>> stain2 = Account("stain")
@@ -274,7 +277,7 @@ Alternative, you could pipe the table list to ``forgetsql-generate``
 and avoid ``--tables`` -- and likewise drop ``--output`` and capture stdout 
 from forgetsql-generate.
 
-The generated module is ready for use, except that you need should
+The generated module is ready for use, except that you need to
 set database connecting details. One possible way is included in the
 generated code, commented out and without a password. 
 
@@ -390,7 +393,7 @@ The exception raised will be database module specific, like
 ``save()`` will return ``True`` if successful.
 
 Undoing an attribute change
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
 If you changed an attribute, and you don't want to save the change to
 the database (as this will happen when the garbage collector kicks in),
@@ -617,4 +620,3 @@ Framework suggestion
 .. How to deal with database connections and extensions.
 
 Sorry, this section is currently unfinished.
-
