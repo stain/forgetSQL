@@ -7,21 +7,27 @@
 ## stian@soiland.no
 ## http://forgetsql.sourceforge.net/
 
-__version__ = "0.9"
+# __version__ should really come from setup.py.. hmm
+__version__ = "0.5"
 
 import exceptions, time, re, types, pprint, sys
 
 import forgetSQL
 
-# change this!
-##import psycopg
-##c = psycopg.connect(database="db", user="user", password="pass")
-##cursor = c.cursor
-
+# backwards compatibility
 try:
   True,False
 except NameError:
   (True, False) = (1==1, 1==0)
+
+# Taken from http://www.python.org/doc/current/lib/built-in-funcs.html
+def my_import(name):
+    mod = __import__(name)
+    components = name.split('.')
+    # Takes care of things like pyPgSQL.PgSQL
+    for comp in components[1:]:
+        mod = getattr(mod, comp)
+    return mod 
 
 def generateFromTables(tables, cursor, getLinks=1, code=1):
   """Generates python code (or class objects if code==0)
@@ -29,12 +35,15 @@ def generateFromTables(tables, cursor, getLinks=1, code=1):
      tables."""
   curs = cursor()
   forgetters = {}
+  class _Wrapper(forgetSQL.Forgetter):
+      pass
+  _Wrapper.cursor = cursor
   for table in tables:
     # capitalize the table name to make it look like a class 
     name = table.capitalize()
     # Define the class by instanciating the meta class to
     # the given name (requires Forgetter to be new style)
-    forgetter = Forgetter.__class__(name, (Forgetter,), {})
+    forgetter = _Wrapper.__class__(name, (_Wrapper,), {})
     # Register it
     forgetters[name] = forgetter
     forgetter._sqlTable = table
@@ -93,12 +102,14 @@ import forgetSQL
 class _Wrapper(forgetSQL.Forgetter):
     """Just a simple wrapper class so that you may
     easily change stuff for all forgetters. Typically
-    this involves subcliassing MysqlForgetter instead."""
+    this involves subclassing MysqlForgetter instead."""
 
     # Remember to change the class function cursor() so that
     # it returns a cursor connected to the database.
-    # 
+    # ie: 
     ## cursor = lambda: myDatabase.cursor()
+    # or
+    ## _Wrapper.cursor = lambda: myDatabase.cursor()
     pass
 
 
@@ -139,7 +150,12 @@ def main():
         print >>sys.stderr, "or upgrade Python."
         sys.exit(1)
     
-    parser = OptionParser(version="%prog " + __version__)
+    usage = """usage: %prog [options]
+Generates Python code for using forgetSQL to access database tables.
+You need to include a line-seperated list of table names to either
+stdin or as a file using option --tables."""
+    
+    parser = OptionParser(version="%prog " + __version__, usage=usage)
     parser.add_option("-t", "--tables", dest="tables",
                       help="read list of tables from FILE instead of stdin",
                       metavar="FILE")        
@@ -155,6 +171,8 @@ def main():
                       help="database username")
     parser.add_option("-p", "--password", dest="password",
                       help="database password")
+    parser.add_option("-c", "--connect", dest="connect",
+      help="database connect string (instead of host/database/user/password")
 
     (options, args) = parser.parse_args()
     if options.tables:
@@ -179,9 +197,46 @@ def main():
         print >>sys.stderr, "Missing required option --dbmodule"        
         parser.print_help(file=sys.stderr)
         sys.exit(4)
-        
+    
+    try:
+        dbmodule = my_import(options.dbmodule)    
+    except ImportError:
+        print >>sys.stderr, "Unknown database module", options.dbmodule
+        sys.exit(5)
+    
+    if options.connect:
+        try:
+            connection = dbmodule.connect(options.connect)   
+        except Exception, e:
+            print >>sys.stderr, "Could not connect to database using", \
+                                options.connect
+            sys.exit(6)
+    else:
+        params = {}
+        if options.database:
+            params['database'] = options.database
+        else:
+            print >>sys.stderr, "Missing required option --database or --connect"     
+            sys.exit(7)
+        if options.host:
+            params['host'] = options.host    
+        if options.username:
+            params['user'] = options.username    
+        if options.password:
+            params['password'] = options.password    
+        try:
+            connection = dbmodule.connect(**params)
+        except Exception, e:
+            print >>sys.stderr, "Could not connect to database using", \
+                  " ".join([key+"="+value for (key,value) in params.items()])
+            print >>sys.stderr, e      
+            sys.exit(8)
+    cursor = connection.cursor        
     tables = file.read().split()
-    generateFromTables(tables)
+    if not tables:
+        print >>sys.stderr, "No table names supplied"
+        sys.exit(9)
+    generateFromTables(tables, cursor)
 
 if __name__=='__main__':
     main()
