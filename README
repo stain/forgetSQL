@@ -14,7 +14,7 @@ forgetSQL readme
     table. The idea is to forget everything about SQL and just worrying
     about normal classes and objects.
 
-.. contents:: Innholdsfortegnelse
+.. contents:: Contents
 
 
 Installation
@@ -36,7 +36,8 @@ Dependencies
 * Some database module (tested: MySQLdb, psycopg)
 
 If using psycopg, mx.DateTime is needed to avoid a psycopg
-bug related to re-inserting dates.
+bug related to re-inserting dates. psycopg depends on mx.DateTime, so
+that shouldn't be a problem.
 
 
 What is forgetSQL?
@@ -227,25 +228,34 @@ a problem.
 Usage
 =====
 
-forgetSQLGenerator
+forgetsql-generate
 ------------------
 
 Before you can use forgetSQL, you will need to generate a module
 containg the classes representing database tables. Luckily, forgetSQL
 ships with a program that can do this for you by guessing.
 
-... about how to use it, parameters and such
+The program is called forgetsql-generate and should be installed by
+setup.py or the packaging system. You might need the devel-version of
+the forgetSQL package.
 
-Currently, forgetSQLgenerator is unfinished, so you will have to do some
-hacks in the code to get a database connection. But basically, what you
-do is:
-    
-    Create a file tables.txt, with a list of database tables, one at a
-    row.
+Create a file tables.txt, with a list of database tables, one per
+line. (This is needed since there is no consistent way to query a
+database about it's tables)
 
-    cat tables.txt | forgetSQLgenerator.py > mydatabase.py
+Then generate the module representing your tables:
 
-The generated module is ready for use, except that you need to set
+forgetsql-generate --dbmodule psycopg --username=johndoe
+                     --password=Jens1PuLe --database=genious
+                     --tables tables.txt --output Genious.py
+
+Alternative, you could pipe the table list to forgetsql-generate 
+and avoid --tables - and likewise drop --output and capture stdout 
+from forgetsql-generate.
+
+The generated module is ready for use, except that you need should
+set database connecting details. 
+
 mydatabase._Wrapper.cursor to a cursor method, and
 mydatabase._Wrapper._dbModule to the database module used:
 
