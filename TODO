@@ -11,8 +11,36 @@ TODO for forgetSQL
    changed in the database?
 
  * generator should take parameters for database connection details
+ 
+ * generator should try to fetch table lists from mysql/postgresql
+   if possible
+
+ * generated framework (_Wrapper and it's like) needs to be 
+   refactored - to make it easier to set database cursor and
+   module. Could the set-module be avoided?
+
+   Framework should include the suggestion of specializing in a
+   subclassing module - to allow regeneration.
+ 
+ * getAll* should try to use the _cache - but what about
+   getAllIterator and the useObject?
+
+   Maybe the getAll-things should be changed, when using getAll but not
+   loading datas be appropriate? 
+
+   What about loading data immediately to _values, but skip
+   instanciating _userClasses until __getattr__ ?
+
+ * Include attributes in dir()
+   -- how to do this? Skip the _values dictionary? There is another
+   method almost like __getattr__ that I don't remember, it is 
+   called for EVERY attribute access, not just the non-existing ones.
+   Use this?
+
+ * Only fields changed should be stored in an UPDATE
 
  * connection details should be made easier to set
 
  * documentation, documentation, documentation!
    More examples, please!
+   -- README added, but needs more work
