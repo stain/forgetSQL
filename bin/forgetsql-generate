@@ -3,38 +3,40 @@
 # $Id$
 
 ## Distributed under LGPL
-## (c) Stian Søiland 2002-2003
+## (c) Stian Søiland 2002-2004
 ## stian@soiland.no
 ## http://forgetsql.sourceforge.net/
 
+__version__ = "0.9"
+
 import exceptions, time, re, types, pprint, sys
-# if you have not installed forgetSQL.py yet
-# sys.path.append("../lib")
 
 import forgetSQL
 
 # change this!
-import psycopg
-c = psycopg.connect(database="db", user="user", password="pass")
-cursor = c.cursor
+##import psycopg
+##c = psycopg.connect(database="db", user="user", password="pass")
+##cursor = c.cursor
 
 try:
   True,False
 except NameError:
-  (True, False) = (1,0)
+  (True, False) = (1==1, 1==0)
 
-def generateFromTables(tables, getLinks=1, code=1):
+def generateFromTables(tables, cursor, getLinks=1, code=1):
   """Generates python code (or class objects if code==0)
      based on SQL queries on the table names given in the list
      tables."""
   curs = cursor()
-  forgetters = {}   
+  forgetters = {}
   for table in tables:
-    # Define a  mini-class
-    class forgetter:
-      pass
-    # Register it, but capitalized name
-    forgetters[table.capitalize()] = forgetter
+    # capitalize the table name to make it look like a class 
+    name = table.capitalize()
+    # Define the class by instanciating the meta class to
+    # the given name (requires Forgetter to be new style)
+    forgetter = Forgetter.__class__(name, (Forgetter,), {})
+    # Register it
+    forgetters[name] = forgetter
     forgetter._sqlTable = table
     forgetter._sqlLinks = {}
     forgetter._sqlFields = {}  
@@ -120,23 +122,66 @@ class _Wrapper(forgetSQL.Forgetter):
 forgetSQL.prepareClasses(locals())
 '''
   else:      
-    # We want the actual classes, not subclassed by this miniclass. 
     for (name, forgetter) in forgetters.items():
-      # Do this magic to include both our settings
-      # and the normal Forgetter stuff.
-      class Spector(forgetter, Forgetter):
-        """Automagically created by forgetSQL."""
-        def cursor(self):
-          return cursor()
+      forgetter.cursor = cursor
+      # hehe.. fake it!    
       Spector.__name__ = name  
-      forgetters[name] = Spector
-    forgetSQL.prepareClasses(forgetters)  
+    forgetSQL.prepareClasses(forgetters)
     return forgetters
       
-if __name__=='__main__':
-    if len(sys.argv) > 1:
-        file = open(sys.argv[1])
+def main():    
+    try:
+        # Should 
+        from optparse import OptionParser
+    except ImportError:
+        print >>sys.stderr, "optik 1.4.1 or Python 2.3 or later needed for command line usage"
+        print >>sys.stderr, "Download optik from http://optik.sourceforge.net/"
+        print >>sys.stderr, "or upgrade Python."
+        sys.exit(1)
+    
+    parser = OptionParser(version="%prog " + __version__)
+    parser.add_option("-t", "--tables", dest="tables",
+                      help="read list of tables from FILE instead of stdin",
+                      metavar="FILE")        
+    parser.add_option("-o", "--output", dest="output",
+                      help="write generated code to OUTPUT instead of stdout")
+    parser.add_option("-m", "--dbmodule", dest="dbmodule",
+                      help="database module to use")
+    parser.add_option("-H", "--host", dest="host",
+                      help="hostname of database server")
+    parser.add_option("-d", "--database", dest="database",
+                      help="database to connect to")
+    parser.add_option("-u", "--username", dest="username",
+                      help="database username")
+    parser.add_option("-p", "--password", dest="password",
+                      help="database password")
+
+    (options, args) = parser.parse_args()
+    if options.tables:
+        try:
+            file = open(options.tables)
+        except IOError, e:
+            print >>sys.stderr, "%s: %s" % (e.strerror, e.filename)
+            sys.exit(2)
     else:
-        file = sys.stdin
+        file = sys.stdin        
+    
+    if options.output:
+        try:
+            output = open(output, "w")
+        except IOError, e:
+            print >>sys.stderr, "%s: %s" % (e.strerror, e.filename)
+            sys.exit(3)
+    else:
+        output = sys.stdout        
+            
+    if not options.dbmodule:
+        print >>sys.stderr, "Missing required option --dbmodule"        
+        parser.print_help(file=sys.stderr)
+        sys.exit(4)
+        
     tables = file.read().split()
     generateFromTables(tables)
+
+if __name__=='__main__':
+    main()
