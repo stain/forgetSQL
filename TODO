@@ -4,6 +4,15 @@ TODO for forgetSQL
  * rollback/commits
    how to do it in programs using forgetSQL?
    how to do it internally?
+   
+   suggestion:
+   Gather related objects in a list, and send the list to some
+   commit()-function that can do commit on a large chunk of SQL for
+   all the objects.
+   
+   Objects should remember their old values, this could be
+   be used for cases where you change the primary key values (and you'll
+   need the old values to run a proper UPDATE).
 
  * objects should timeout as well, but what should happen?
    raise TimeOutException ? 
@@ -32,10 +41,8 @@ TODO for forgetSQL
    instanciating _userClasses until __getattr__ ?
 
  * Include attributes in dir()
-   -- how to do this? Skip the _values dictionary? There is another
-   method almost like __getattr__ that I don't remember, it is 
-   called for EVERY attribute access, not just the non-existing ones.
-   Use this?
+   -- how to do this? Skip the _values dictionary? 
+   use properties.
 
  * Only fields changed should be stored in an UPDATE
 
