@@ -1,113 +1,12 @@
 #!/usr/bin/env python
 
+__version__ = "0.5"
 
 ## Distributed under LGPL
 ## (c) Stian Søiland 2002-2003
 ## stian@soiland.no
 ## http://forgetsql.sourceforge.net/
 
-## $Log$
-## Revision 1.12  2004/03/08 06:26:24  stain
-## Tried to update documenting comments..
-##
-## Revision 1.11  2004/03/03 13:44:33  stain
-## DateTimeDelta objects were stringified as
-## '14:00:00:00.0' for 14 days, and PostgreSQL didn't like that.
-## Changed to more approriate '14 00:00:00.0'.
-##
-## Revision 1.10  2003/10/08 14:53:48  stain
-## self._new forces saveDB
-##
-## Revision 1.9  2003/07/26 12:27:22  stain
-## Some patches to make inserting work in MysqlForgetter again.
-## Note that alot of type-checking-stuff is NOT done in MysqlForgetter,
-## but I don't think they're that neccessary.
-##
-## Revision 1.8  2003/07/23 09:05:55  anoncvs_jupiter-ftp
-## forgetSQL-fixes
-## ---------------
-## Using new-style-classes, the constructor now caches objects
-## previously created using weakref, so that you get the same instance each
-## time.
-##
-## This might still not be true for all getAll-methods.
-##
-## Where-clause-lists can now include OR-parts, as they are joint with AND
-## using parantheses.
-##
-## __eq__ compare two objects - it just checks the class *name* and the
-## primary key.  (using class name makes it possible to compare two
-## instances from different module loadings)
-##
-## There were a bug with _sqlPrimary-multilength-support now resolved.
-##
-## The self._dbModule.BOOLEAN-check contained a nasty bug:
-## if valueType == self._dbModule.BOOLEAN and value not in (True, False):
-## this never worked, as normal integers 0 and 1 are in (True, False)
-## anyway, since the operator 'in' uses == to check existance, not 'is'.
-##
-## load() docstring were WRONG - it always loads from database. (this
-## fooled me, I almost wrote a reload() methods !)
-##
-## --
-##
-## BUGS and TODO added, they are a bit sparse at the time.
-##
-## --
-##
-## The generator still needs LOT of refactoring to be made properly
-## callable, but at least now it imports it's own database cursor as an
-## example, it doesn't require the undocumented (and internal)
-## nav.database. :)
-##
-## --
-##
-## A large README-file is added, this is my first attempt of documenting
-## this project. Some chapters are not written yet, some contains too much.
-## Probably the file will be splitted at a later time.
-##
-## --
-##
-## I've added a setup.py that should install forgetSQL.py into
-## site-packages/ properly.
-##
-## A release is coming up really soon now, what remains to be done before
-## release:
-##
-##   * the generator should take options for database connection
-##   * the generator could try to fetch table names from
-##     known system tables (postgresql, mysql)
-##   * the framework generated should contain a nicer way to set
-##     databasemodule (_Wrapper._dbModule) and cursor (_Wrapper.cursor)
-##   * the cache should be tested more, I've experienced some problems
-##   * documentation must be finished
-##   * some (working!) examples should be included, not just those in
-##     the README
-##
-## I'm not sure what to call the release, probably 0.7 to show that the
-## library has been tested and used for a while, but still is not totally
-## finished.
-##
-## Revision 1.7  2003/07/11 12:50:30  stain
-## Previous commit forced getAllIterator to set the ID to [52] instead of
-## 52, due to initializing with cls(ids) instead of cls(*ids) - where ids
-## were a list.
-##
-## There miiight be several of these errors laying around, both here and in
-## your application.
-##
-## Revision 1.6  2003/07/11 12:34:01  stain
-## _sqlSequence defines the name of a tables sequence for
-## _getNextSequence.
-##
-## _getNextSequence includes _ after tablename, so the result is
-## table_column_seq, not tablecolumn_seq.
-##
-## The constructor of forgetters supports multiple values as multiple
-## parameters, not a tupple anymore. _getID() returns a tupple when
-## appropriate, as always, so myClass(self.reference._getID()) should
-## work...
-##
 
 import exceptions, time, re, types, sys
 
