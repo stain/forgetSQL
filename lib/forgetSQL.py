@@ -7,6 +7,71 @@
 ## http://forgetsql.sourceforge.net/
 
 ## $Log$
+## Revision 1.8  2003/07/23 09:05:55  anoncvs_jupiter-ftp
+## forgetSQL-fixes
+## ---------------
+## Using new-style-classes, the constructor now caches objects
+## previously created using weakref, so that you get the same instance each
+## time.
+##
+## This might still not be true for all getAll-methods.
+##
+## Where-clause-lists can now include OR-parts, as they are joint with AND
+## using parantheses.
+##
+## __eq__ compare two objects - it just checks the class *name* and the
+## primary key.  (using class name makes it possible to compare two
+## instances from different module loadings)
+##
+## There were a bug with _sqlPrimary-multilength-support now resolved.
+##
+## The self._dbModule.BOOLEAN-check contained a nasty bug:
+## if valueType == self._dbModule.BOOLEAN and value not in (True, False):
+## this never worked, as normal integers 0 and 1 are in (True, False)
+## anyway, since the operator 'in' uses == to check existance, not 'is'.
+##
+## load() docstring were WRONG - it always loads from database. (this
+## fooled me, I almost wrote a reload() methods !)
+##
+## --
+##
+## BUGS and TODO added, they are a bit sparse at the time.
+##
+## --
+##
+## The generator still needs LOT of refactoring to be made properly
+## callable, but at least now it imports it's own database cursor as an
+## example, it doesn't require the undocumented (and internal)
+## nav.database. :)
+##
+## --
+##
+## A large README-file is added, this is my first attempt of documenting
+## this project. Some chapters are not written yet, some contains too much.
+## Probably the file will be splitted at a later time.
+##
+## --
+##
+## I've added a setup.py that should install forgetSQL.py into
+## site-packages/ properly.
+##
+## A release is coming up really soon now, what remains to be done before
+## release:
+##
+##   * the generator should take options for database connection
+##   * the generator could try to fetch table names from
+##     known system tables (postgresql, mysql)
+##   * the framework generated should contain a nicer way to set
+##     databasemodule (_Wrapper._dbModule) and cursor (_Wrapper.cursor)
+##   * the cache should be tested more, I've experienced some problems
+##   * documentation must be finished
+##   * some (working!) examples should be included, not just those in
+##     the README
+##
+## I'm not sure what to call the release, probably 0.7 to show that the
+## library has been tested and used for a while, but still is not totally
+## finished.
+##
 ## Revision 1.7  2003/07/11 12:50:30  stain
 ## Previous commit forced getAllIterator to set the ID to [52] instead of
 ## 52, due to initializing with cls(ids) instead of cls(*ids) - where ids
@@ -40,12 +105,18 @@ except:
 try:
   True,False
 except NameError:
-  raise "True/False needed, too old Python?"
+  raise "At least Python 2.2.1 required, no True/False found"
+  # They are needed because databases tend to differenciate 
+  # between boolean values and integers, so we need seperate
+  # symbols.
+
+import weakref
 
 class NotFound(exceptions.Exception):
   pass
 
-class Forgetter:
+
+class Forgetter(object):
   """SQL to object database wrapper.
   Given a welldefined database, by subclassing Forgetter
   and supplying some attributes, you may wrap your SQL tables
@@ -101,6 +172,8 @@ class Forgetter:
 
                 Python 2.2 (iterators, methodclasses)
   """
+  # How long to keep objects in cache?
+  _timeout = 60
   # Will be 1 once prepare() is called
   _prepared = 0
 
@@ -212,7 +285,33 @@ class Forgetter:
   # a reference to the database module used, ie. 
   # MySQLdb, psycopg etc.
   _dbModule = None
- 
+  
+  def __new__(cls, *args):
+    if not hasattr(cls, '_cache'):
+      cls._cache = {}
+    try:  # to implement 'goto' in Python
+      if not cls._cache.has_key(args):
+        # unknown
+        raise "NotFound"
+      (ref, updated) = cls._cache[args]
+      realObject = ref()
+      if realObject is None:
+        # No more real references to it, dead object
+        raise "NotFound"
+      age = time.time() - updated
+      if age > cls._timeout:
+        # Too old!
+        raise "NotFound"
+      updated = time.time()
+    except "NotFound":
+      # We'll need to create it
+      realObject = object.__new__(cls, *args)  
+      ref = weakref.ref(realObject)
+    updated = time.time()
+    # store a weak reference
+    cls._cache[args] = (ref, updated) 
+    return realObject
+      
   def __init__(self, *id):
     """Initialize, possibly with a database id. A forgetter with
     multivalue primary key (ie. _sqlPrimary more than 1 in length), 
@@ -351,8 +450,9 @@ class Forgetter:
       self._values[field] = None
 
   def load(self, id=None):
-    """Loads from database if neccessary."""
-    if not id is None:
+    """Loads from database. Old values will be discarded."""
+    if id is not None:
+      # We are asked to change our ID to something else
       self.reset()
       self._setID(id)
     if not self._new and self._validID():  
@@ -360,6 +460,7 @@ class Forgetter:
     self._updated = time.time()
   
   def save(self):
+    """Saves to database if anything has changed since last load"""
     if (self._validID() and self._changed) or (self._updated and self._changed > self._updated):
       # Don't save if we have not loaded existing data!
       self._saveDB()
@@ -465,8 +566,11 @@ My fields: %s""" % (selectfields, cls._sqlFields)
       if where:
         tempWhere += where
       if(tempWhere):
-        sql += "\nWHERE\n  "
-        sql += ' AND\n  '.join(tempWhere) 
+        # Make sure to use paranteses in case someone has used
+        # ORs in the WHERE-list..
+        sql += "\nWHERE\n ("
+        sql += ') AND\n  ('.join(tempWhere) 
+        sql += ')'
       if operation == 'SELECTALL' and orderBy:
         sql += '\nORDER BY\n  '
         if type(orderBy) in (types.TupleType, types.ListType):
@@ -560,7 +664,7 @@ My fields: %s""" % (selectfields, cls._sqlFields)
     for elem in fields:
       value = result[position]
       valueType = cursor.description[position][1]
-      if valueType == self._dbModule.BOOLEAN and value not in (True, False):
+      if valueType == self._dbModule.BOOLEAN and (value is not True or value is not False):
         # convert to a python boolean
         value = value and True or False
       if value and self._userClasses.has_key(elem):
@@ -586,7 +690,8 @@ My fields: %s""" % (selectfields, cls._sqlFields)
     self._updated = time.time()
   
   def _saveDB(self):
-    """Inserts or updates into the database"""
+    """Inserts or updates into the database. Note that every field
+       will be updated, not just the changed one."""
     # We're a "fresh" copy now
     self._updated = time.time()
     if self._new:
@@ -609,12 +714,12 @@ My fields: %s""" % (selectfields, cls._sqlFields)
     values = []
     for field in fields:
       value = getattr(self, field)
+      # First some dirty datatype hacks
       if DateTime and type(value) in \
          (DateTime.DateTimeType, DateTime.DateTimeDeltaType):
         # stupid psycopg does not support it's own return type..
         # lovely..
         value = str(value)
-
       if value is True or value is False:
         # We must store booleans as 't' and 'f' ...  
         value = value and 't' or 'f'
@@ -643,7 +748,11 @@ My fields: %s""" % (selectfields, cls._sqlFields)
        when needed by the regular load()-autocall."""
     ids = cls.getAllIDs(where, orderBy=orderBy)
     # Instansiate a lot of them
-    return [cls(*id) for id in ids]
+    if len(cls._sqlPrimary) > 1:
+        return [cls(*id) for id in ids]
+    else:
+        return [cls(id) for id in ids]
+
     
   getAll = classmethod(getAll)  
   
@@ -775,9 +884,17 @@ My fields: %s""" % (selectfields, cls._sqlFields)
     return self.__class__.__name__ + ' %s' % self._getID()
   
   def __str__(self):
-    short = [str(getattr(self, short)) for short in self._shortView]
+    shortView = self._shortView or self._sqlPrimary
+    short = [str(getattr(self, short)) for short in shortView]
     text = ', '.join(short)
-    return repr(self) + ': ' + text
+    # return repr(self) + ': ' + text
+    return text
+
+  def __eq__(self, obj):
+    """Simple comparsion of objects."""
+    return self.__class__.__name__ == obj.__class__.__name__ \
+           and self._getID() == obj._getID()
+
 
 class MysqlForgetter(Forgetter):
   """MYSQL-compatible Forgetter"""
@@ -824,7 +941,7 @@ def prepareClasses(locals):
     prepareClasses will only touch objects in the name space
     that is a subclassed of Forgetter."""
   for (name, forgetter) in locals.items():
-    if not (type(forgetter) is  types.ClassType  and
+    if not (type(forgetter) is  types.TypeType and
             issubclass(forgetter, Forgetter)):
       # Only care about Forgetter objects
       continue

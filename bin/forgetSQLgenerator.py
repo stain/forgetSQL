@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+# $Id$
 
 ## Distributed under LGPL
 ## (c) Stian Søiland 2002-2003
@@ -7,9 +8,15 @@
 ## http://forgetsql.sourceforge.net/
 
 import exceptions, time, re, types, pprint, sys
+# if you have not installed forgetSQL.py yet
+# sys.path.append("../lib")
 
-from nav.database import cursor
 import forgetSQL
+
+# change this!
+import psycopg
+c = psycopg.connect(database="db", user="user", password="pass")
+cursor = c.cursor
 
 try:
   True,False

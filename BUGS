@@ -1,0 +1,9 @@
+Bugs for forgetSQL
+==================
+
+See also http://www.sourceforge.net/project/forgetsql for the
+Bug database.
+
+  * getAll* and getChildren does not neccessarily use the
+    cached version.
+    

@@ -1,0 +1,18 @@
+TODO for forgetSQL
+==================
+
+ * rollback/commits
+   how to do it in programs using forgetSQL?
+   how to do it internally?
+
+ * objects should timeout as well, but what should happen?
+   raise TimeOutException ? 
+   Try a passive reload, and only raise exception if something has
+   changed in the database?
+
+ * generator should take parameters for database connection details
+
+ * connection details should be made easier to set
+
+ * documentation, documentation, documentation!
+   More examples, please!
