@@ -1,5 +1,5 @@
-Bugs for forgetSQL
-==================
+Known bugs for forgetSQL
+========================
 
 See also http://www.sourceforge.net/project/forgetsql for the
 Bug database.
@@ -7,3 +7,7 @@ Bug database.
   * getAll* and getChildren does not neccessarily use the
     cached version.
     
+  * empty/wrong _sqlPrimary for tables with no obvious
+    primary key - should select ALL fields as primary
+    keys to avoid stupid error messages.
+  
