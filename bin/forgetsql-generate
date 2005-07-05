@@ -120,8 +120,9 @@ class _Wrapper(%(class)s):
     # Example database connection (might miss password)
     #_dbModule = %(module)s
     #_dbConnection = %(module)s.connect(%(connect)s)
-    #def cursor(self):
-    #    return self._dbConnection.cursor()
+    #def cursor(cls):
+    #    return cls._dbConnection.cursor()
+    #cursor = classmethod(cursor)
 
 ''' % code
     items = forgetters.items()
