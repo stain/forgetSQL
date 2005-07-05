@@ -608,10 +608,11 @@ My fields: %s""" % (selectfields, cls._sqlFields)
         curs = self.cursor()
         curs.execute(sql, self._getID()) 
         result = curs.fetchone()
-        curs.close()
         if not result:
+            curs.close()
             raise NotFound, self._getID()
         self._loadFromRow(result, fields, curs)    
+        curs.close()
         self._updated = time.time()
     
     def _saveDB(self):
