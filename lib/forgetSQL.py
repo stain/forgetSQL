@@ -203,6 +203,13 @@ class Forgetter(object):
     # Use MyClass._dbModule = MySQLdb - not "MySQLdb"
     # 
     _dbModule = None
+
+    # By default, autosave change when object is garbage collected.
+    # NOTE: This could give weird side affects as you need to keep track
+    # on when objects are garbage collected. Instead, use .save()
+    # explicitely when you want to save. By default, for backward
+    # compatibility, autosave is on.
+    _autosave = True
     
     def __new__(cls, *args):
         if not hasattr(cls, '_cache'):
@@ -339,6 +346,8 @@ class Forgetter(object):
         errors caused by wrong insertion/update (ie. wrong
         datatype for a field)
         """
+        if not self._autosave:
+            return
         try:
             self.save()
         except Exception, e:
