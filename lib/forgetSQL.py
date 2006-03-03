@@ -700,6 +700,7 @@ My fields: %s""" % (selectfields, cls._sqlFields)
         # cursor.commit()
         cursor.close()
         self._new = False
+        self._changed = None
     
     def getAll(cls, where=None, orderBy=None):
         """Retrieve all the objects.
