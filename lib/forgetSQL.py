@@ -1,14 +1,39 @@
 #!/usr/bin/env python
+# *-* encoding: utf8
+# 
+# Copyright (c) 2002-2006 Stian Soiland
+# 
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+# 
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+# 
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307  USA
+#
+# Author: Stian Soiland <stian@soiland.no>
+# URL: http://forgetsql.sourceforge.net/
+# License: LGPL
+#
+"""forgetSQL is a Python module for accessing SQL databases by creating
+classes that maps SQL tables to objects, normally one class pr. SQL
+table. The idea is to forget everything about SQL and just worrying
+about normal classes and objects. """
 
 __version__ = "0.5.2"
 
-## Distributed under LGPL
-## (c) Stian Soiland 2002-2005
-## stian@soiland.no
-## http://forgetsql.sourceforge.net/
-
-
-import exceptions, time, re, types, sys
+import exceptions
+import time
+import re
+import types
+import sys
+import weakref
 
 try:
     from mx import DateTime
@@ -20,7 +45,6 @@ try:
 except NameError:
     (True,False) = (1==1, 0==1)
 
-import weakref
 
 class NotFound(exceptions.Exception):
     pass
@@ -89,8 +113,8 @@ class Forgetter(object):
     """
     # How long to keep objects in cache?
     _timeout = 60
-    # Will be 1 once prepare() is called
-    _prepared = 0
+    # Will be True once prepare() is called
+    _prepared = False
 
     # The default table containing our fields
     # _sqlTable = 'shop'
@@ -854,6 +878,31 @@ My fields: %s""" % (selectfields, cls._sqlFields)
             whereList.extend(where)
         
         return forgetter.getAll(whereList, orderBy=orderBy)
+
+    def getChildrenIterator(self, forgetter, field=None, where=None,
+                            orderBy=None, useObject=None):
+        """Like getChildren, except that it returns an
+        iterator, like getAllIterator. An iterator should
+        """
+        if type(where) in (types.StringType, types.UnicodeType):
+            where = (where,)
+
+        if not field:
+            for (i_field, i_class) in forgetter._userClasses.items():
+                if isinstance(self, i_class):
+                    field = i_field
+                    break # first one found is ok :=)
+        if not field:
+            raise "No field found, check forgetter's _userClasses"
+        sqlname = forgetter._sqlFields[field]
+        myID = self._getID()[0] # assuming single-primary !
+
+        whereList = ["%s='%s'" % (sqlname, myID)]
+        if where:
+            whereList.extend(where)
+
+        return forgetter.getAllIterator(whereList, useObject=useObject,
+                                        orderBy=orderBy)                
         
     def __repr__(self):
         return self.__class__.__name__ + ' %s' % self._getID()
@@ -946,5 +995,5 @@ def prepareClasses(locals):
             newLinks.append((link1, link2))
 
         forgetter._sqlLinks = newLinks
-        forgetter._prepared = 1
+        forgetter._prepared = True
 
