@@ -1,24 +1,47 @@
 #!/usr/bin/env python
+#!/usr/bin/env python
+# *-* encoding: utf8
+# 
+# Copyright (c) 2002-2006 Stian Soiland
+# 
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+# 
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+# 
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307  USA
+#
+# Author: Stian Soiland <stian@soiland.no>
+# URL: http://forgetsql.sourceforge.net/
+# License: LGPL
+#
 
-# $Id$
 
-## Distributed under LGPL
-## (c) Stian Søiland 2002-2004
-## stian@soiland.no
-## http://forgetsql.sourceforge.net/
 
 # __version__ should really come from setup.py.. hmm
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
-import exceptions, time, re, types, pprint, sys
+import exceptions
+import time
+import re
+import types
+import pprint
+import sys
 
 import forgetSQL
 
 # backwards compatibility
 try:
-  True,False
+    True,False
 except NameError:
-  (True, False) = (1==1, 1==0)
+    (True, False) = (1==1, 1==0)
 
 # Taken from http://www.python.org/doc/current/lib/built-in-funcs.html
 def my_import(name):
@@ -30,80 +53,81 @@ def my_import(name):
     return mod 
 
 def generateFromTables(tables, cursor, getLinks=1, code=0):
-  """Generates python code (or class objects if code is false)
-     based on SQL queries on the table names given in the list
-     tables.
-     code - if given - should be an dictionary containing these
+    """Generates python code (or class objects if code is false)
+    based on SQL queries on the table names given in the list
+    tables.
+
+     code -- if given -- should be an dictionary containing these
      keys to be inserted into generated code:
-       'database':  database name
-       'module':    database module name
-       'connect':   string to be inserted into module.connect()
-     """
-  curs = cursor()
-  forgetters = {}
-  class _Wrapper(forgetSQL.Forgetter):
-      pass
-  _Wrapper.cursor = cursor
-  for table in tables:
-    # capitalize the table name to make it look like a class 
-    name = table.capitalize()
-    # Define the class by instanciating the meta class to
-    # the given name (requires Forgetter to be new style)
-    forgetter = _Wrapper.__class__(name, (_Wrapper,), {})
-    # Register it
-    forgetters[name] = forgetter
-    forgetter._sqlTable = table
-    forgetter._sqlLinks = {}
-    forgetter._sqlFields = {}  
-    forgetter._shortView = ()
-    forgetter._descriptions = {}
-    forgetter._userClasses = {}
+         'database':  database name
+         'module':    database module name
+         'connect':   string to be inserted into module.connect()
+    """
+    curs = cursor()
+    forgetters = {}
+    class _Wrapper(forgetSQL.Forgetter):
+        pass
+    _Wrapper.cursor = cursor
+    for table in tables:
+        # capitalize the table name to make it look like a class 
+        name = table.capitalize()
+        # Define the class by instanciating the meta class to
+        # the given name (requires Forgetter to be new style)
+        forgetter = _Wrapper.__class__(name, (_Wrapper,), {})
+        # Register it
+        forgetters[name] = forgetter
+        forgetter._sqlTable = table
+        forgetter._sqlLinks = {}
+        forgetter._sqlFields = {}    
+        forgetter._shortView = ()
+        forgetter._descriptions = {}
+        forgetter._userClasses = {}
 
-    # Get columns
-    curs.execute("SELECT * FROM %s LIMIT 1" % table)
-    columns = [column[0] for column in curs.description]
-    # convert to dictionary and register in forgetter
-    for column in columns:
-      forgetter._sqlFields[column] = column
-    
-  if getLinks:
-    # Try to find links between tables (!)  
-    # Note the big O factor with this ...
+        # Get columns
+        curs.execute("SELECT * FROM %s LIMIT 1" % table)
+        columns = [column[0] for column in curs.description]
+        # convert to dictionary and register in forgetter
+        for column in columns:
+            forgetter._sqlFields[column] = column
+        
+    if getLinks:
+        # Try to find links between tables (!)    
+        # Note the big O factor with this ...
 
-    for (tableName, forgetter) in forgetters.items():
-      for (key, column) in forgetter._sqlFields.items():
-        # A column refering to another table would most likely
-        # be called otherColumnID or just otherColumn. We'll 
-        # lowercase below when performing the test.
-        possTable = re.sub(r'_?id$', '', column)
+        for (tableName, forgetter) in forgetters.items():
+            for (key, column) in forgetter._sqlFields.items():
+                # A column refering to another table would most likely
+                # be called otherColumnID or just otherColumn. We'll 
+                # lowercase below when performing the test.
+                possTable = re.sub(r'_?id$', '', column)
 
-        # all tables (ie. one of the forgetters) are candidates
-        foundLink = False
-        for candidate in forgetters.keys():
-          if candidate.lower() == possTable.lower():
-            if possTable.lower() == tableName.lower():
-              # It's our own primary key!
-              forgetter._sqlPrimary = (column,)
-              break
-              
-            # Woooh! First - let's replace 'blapp_id' with 'blapp'
-            # as the attribute name to indicate that it would
-            # contain the Blapp instance, not just 
-            # some ID.
-            del forgetter._sqlFields[key]
-            forgetter._sqlFields[possTable] = column
+                # all tables (ie. one of the forgetters) are candidates
+                foundLink = False
+                for candidate in forgetters.keys():
+                    if candidate.lower() == possTable.lower():
+                        if possTable.lower() == tableName.lower():
+                            # It's our own primary key!
+                            forgetter._sqlPrimary = (column,)
+                            break
+                            
+                        # Woooh! First - let's replace 'blapp_id' with 'blapp'
+                        # as the attribute name to indicate that it would
+                        # contain the Blapp instance, not just 
+                        # some ID.
+                        del forgetter._sqlFields[key]
+                        forgetter._sqlFields[possTable] = column
 
-            # And.. we'll need to know which class we refer to
-            forgetter._userClasses[possTable] = candidate
-            break # we've found our candidate
+                        # And.. we'll need to know which class we refer to
+                        forgetter._userClasses[possTable] = candidate
+                        break # we've found our candidate
 
-  if code:
-    if code['module'] == "MySQLdb":
-        code['class'] = 'forgetSQL.MysqlForgetter'
-    else:
-        code['class'] = 'forgetSQL.Forgetter'      
-    code['date'] = time.strftime('%Y-%m-%d')    
-    print '''
+    if code:
+        if code['module'] == "MySQLdb":
+            code['class'] = 'forgetSQL.MysqlForgetter'
+        else:
+            code['class'] = 'forgetSQL.Forgetter'            
+        code['date'] = time.strftime('%Y-%m-%d')        
+        print '''
 """Database wrappers %(database)s
 Autogenerated by forgetsql-generate %(date)s.
 """
@@ -125,27 +149,27 @@ class _Wrapper(%(class)s):
     #cursor = classmethod(cursor)
 
 ''' % code
-    items = forgetters.items()
-    items.sort()
-    for (name, forgetter) in items:
-      print "class %s(_Wrapper):" % name
-      for (key, value) in forgetter.__dict__.items():
-        if key.find('__') == 0:
-          continue
-        nice = pprint.pformat(value)
-        # Get some indention
-        nice = nice.replace('\n', '\n       ' + ' '*len(key))
-        print '    %s = ' % key, nice
-      print ""  
-    print '''
+        items = forgetters.items()
+        items.sort()
+        for (name, forgetter) in items:
+            print "class %s(_Wrapper):" % name
+            for (key, value) in forgetter.__dict__.items():
+                if key.find('__') == 0:
+                    continue
+                nice = pprint.pformat(value)
+                # Get some indention
+                nice = nice.replace('\n', '\n             ' + ' '*len(key))
+                print '        %s = ' % key, nice
+            print ""    
+        print '''
 
 # Prepare them all. We need to send in our local
 # namespace.
 forgetSQL.prepareClasses(locals())
 '''
-  else:      
-    forgetSQL.prepareClasses(forgetters)
-    return forgetters
+    else:            
+        forgetSQL.prepareClasses(forgetters)
+        return forgetters
       
 def main():    
     try:
