@@ -1015,6 +1015,7 @@ def generateFromTables(tables, cursor, getLinks=1, code=0):
     curs = cursor()
     forgetters = {}
     class _Wrapper(forgetSQL.Forgetter):
+        _autosave = False
         pass
     _Wrapper.cursor = cursor
     for table in tables:
@@ -1089,8 +1090,11 @@ class _Wrapper(%(class)s):
     """Just a simple wrapper class so that you may
     easily change stuff for all forgetters. Typically
     this involves subclassing MysqlForgetter instead."""
-    
-    # Example database connection (might miss password)
+
+    # Only save changes on .save()
+    _autosave = False
+
+    # Example database connection (might lack password)
     #_dbModule = %(module)s
     #_dbConnection = %(module)s.connect(%(connect)s)
     #def cursor(cls):
