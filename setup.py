@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 # Whyyyyyyy oh whyyy doesn't distutils do this !??
-# (if you forget this - root with umask 0077 
+# (if you forget this - root with umask 0077
 #  will install non-readable libraries)
 import os
 if os.geteuid() == 0:

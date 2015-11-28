@@ -1,13 +1,40 @@
 #!/usr/bin/env python
+# *-* encoding: utf8
+#
+# Copyright (c) 2002-2015 Stian Soiland
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307  USA
+#
+# Author: Stian Soiland-Reyes <stian@soiland-reyes.com>
+# URL: https://github.com/stain/forgetSQL
+# License: LGPL 2.1 or later
+#
+"""forgetSQL is a Python module for accessing SQL databases by creating
+classes that maps SQL tables to objects, normally one class pr. SQL
+table. The idea is to forget everything about SQL and just worrying
+about normal classes and objects. """
+
 __version__ = "0.6.0-SNAPSHOT"
 
-## Distributed under LGPL 2.1 or later
-## (c) Stian Soiland-Reyes 2002-2015
-## stian@soiland-reyes.com
-## https://github.com/stain/forgetSQL
-
-
-import exceptions, time, re, types, sys
+import exceptions
+import time
+import re
+import types
+import sys
+import weakref
+import pprint
 
 try:
     from mx import DateTime
@@ -19,7 +46,6 @@ try:
 except NameError:
     (True,False) = (1==1, 0==1)
 
-import weakref
 
 class NotFound(exceptions.Exception):
     pass
@@ -88,8 +114,8 @@ class Forgetter(object):
     """
     # How long to keep objects in cache?
     _timeout = 60
-    # Will be 1 once prepare() is called
-    _prepared = 0
+    # Will be True once prepare() is called
+    _prepared = False
 
     # The default table containing our fields
     # _sqlTable = 'shop'
@@ -851,8 +877,32 @@ My fields: %s""" % (selectfields, cls._sqlFields)
         whereList = ["%s='%s'" % (sqlname, myID)]
         if where:
             whereList.extend(where)
-
         return forgetter.getAll(whereList, orderBy=orderBy)
+
+    def getChildrenIterator(self, forgetter, field=None, where=None,
+                            orderBy=None, useObject=None):
+        """Like getChildren, except that it returns an
+        iterator, like getAllIterator. An iterator should
+        """
+        if type(where) in (types.StringType, types.UnicodeType):
+            where = (where,)
+
+        if not field:
+            for (i_field, i_class) in forgetter._userClasses.items():
+                if isinstance(self, i_class):
+                    field = i_field
+                    break # first one found is ok :=)
+        if not field:
+            raise "No field found, check forgetter's _userClasses"
+        sqlname = forgetter._sqlFields[field]
+        myID = self._getID()[0] # assuming single-primary !
+
+        whereList = ["%s='%s'" % (sqlname, myID)]
+        if where:
+            whereList.extend(where)
+
+        return forgetter.getAllIterator(whereList, useObject=useObject,
+                                        orderBy=orderBy)
 
     def __repr__(self):
         return self.__class__.__name__ + ' %s' % self._getID()
@@ -945,4 +995,128 @@ def prepareClasses(locals):
             newLinks.append((link1, link2))
 
         forgetter._sqlLinks = newLinks
-        forgetter._prepared = 1
+        forgetter._prepared = True
+
+
+def generateFromTables(tables, cursor, getLinks=1, code=0):
+    """Generates python code (or class objects if code is false)
+    based on SQL queries on the table names given in the list
+    tables.
+
+    code -- if given -- should be an dictionary containing these
+    keys to be inserted into generated code:
+         'database':  database name
+         'module':    database module name
+         'connect':   string to be inserted into module.connect()
+    """
+    curs = cursor()
+    forgetters = {}
+    class _Wrapper(forgetSQL.Forgetter):
+        _autosave = False
+        pass
+    _Wrapper.cursor = cursor
+    for table in tables:
+        # capitalize the table name to make it look like a class
+        name = table.capitalize()
+        # Define the class by instanciating the meta class to
+        # the given name (requires Forgetter to be new style)
+        forgetter = _Wrapper.__class__(name, (_Wrapper,), {})
+        # Register it
+        forgetters[name] = forgetter
+        forgetter._sqlTable = table
+        forgetter._sqlLinks = {}
+        forgetter._sqlFields = {}
+        forgetter._shortView = ()
+        forgetter._descriptions = {}
+        forgetter._userClasses = {}
+
+        # Get columns
+        curs.execute("SELECT * FROM %s LIMIT 1" % table)
+        columns = [column[0] for column in curs.description]
+        # convert to dictionary and register in forgetter
+        for column in columns:
+            forgetter._sqlFields[column] = column
+
+    if getLinks:
+        # Try to find links between tables (!)
+        # Note the big O factor with this ...
+
+        for (tableName, forgetter) in forgetters.items():
+            for (key, column) in forgetter._sqlFields.items():
+                # A column refering to another table would most likely
+                # be called otherColumnID or just otherColumn. We'll
+                # lowercase below when performing the test.
+                possTable = re.sub(r'_?id$', '', column)
+
+                # all tables (ie. one of the forgetters) are candidates
+                foundLink = False
+                for candidate in forgetters.keys():
+                    if candidate.lower() == possTable.lower():
+                        if possTable.lower() == tableName.lower():
+                            # It's our own primary key!
+                            forgetter._sqlPrimary = (column,)
+                            break
+
+                        # Woooh! First - let's replace 'blapp_id' with 'blapp'
+                        # as the attribute name to indicate that it would
+                        # contain the Blapp instance, not just
+                        # some ID.
+                        del forgetter._sqlFields[key]
+                        forgetter._sqlFields[possTable] = column
+
+                        # And.. we'll need to know which class we refer to
+                        forgetter._userClasses[possTable] = candidate
+                        break # we've found our candidate
+
+    if code:
+        if code['module'] == "MySQLdb":
+            code['class'] = 'forgetSQL.MysqlForgetter'
+        else:
+            code['class'] = 'forgetSQL.Forgetter'
+        code['date'] = time.strftime('%Y-%m-%d')
+        print '''
+"""Database wrappers %(database)s
+Autogenerated by forgetsql-generate %(date)s.
+"""
+
+import forgetSQL
+
+#import %(module)s
+
+class _Wrapper(%(class)s):
+    """Just a simple wrapper class so that you may
+    easily change stuff for all forgetters. Typically
+    this involves subclassing MysqlForgetter instead."""
+
+    # Only save changes on .save()
+    _autosave = False
+
+    # Example database connection (might lack password)
+    #_dbModule = %(module)s
+    #_dbConnection = %(module)s.connect(%(connect)s)
+    #def cursor(cls):
+    #    return cls._dbConnection.cursor()
+    #cursor = classmethod(cursor)
+
+''' % code
+        items = forgetters.items()
+        items.sort()
+        for (name, forgetter) in items:
+            print "class %s(_Wrapper):" % name
+            for (key, value) in forgetter.__dict__.items():
+                if key.find('__') == 0:
+                    continue
+                nice = pprint.pformat(value)
+                # Get some indention
+                nice = nice.replace('\n', '\n             ' + ' '*len(key))
+                print '        %s = ' % key, nice
+            print ""
+        print '''
+
+# Prepare them all. We need to send in our local
+# namespace.
+forgetSQL.prepareClasses(locals())
+'''
+    else:
+        prepareClasses(forgetters)
+        return forgetters

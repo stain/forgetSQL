@@ -1,0 +1,45 @@
+Changes
+=======
+
+Version 0.5.2.rc1  
+-----------------
+2006-06-02
+
+Added new field _autosave for disabling garbage collection time saving.
+    
+    # By default, autosave change when object is garbage collected.
+    # NOTE: This could give weird side affects as you need to keep track
+    # on when objects are garbage collected. Instead, use .save()
+    # explicitely when you want to save. By default, for backward
+    # compatibility, autosave is on.
+    _autosave = True
+
+It is recommended to disable _autosave and use .save(), as relying on
+garbage collection for persistance is not reliable. This is now the
+default behaviour in modules made by the generator.
+
+
+The code syntax has been cleaned up with 4-space indention and proper
+headers. 
+
+
+Corrected a bug that _changed was not reset on save, so that objects
+that was changed once, was forever doomed to be saved again. (Thanks to
+Morten Vold)
+
+
+_loadDB() now close the cursor after loading the row, previous behaviour
+could have given trouble with some DB drivers.
+
+
+Added an iterator version of getChildren(), getChildrenIterator(). In
+general, it is advicable to use the get*Iterator methods for
+performance reasons. (Thanks to Morten Vold)
+
+
+generateFromTables() moved from forgetsql-generate, and is now available
+as a library function.
+
+
+Moved from CVS to Subversion on Sourceforge. New address is
+https://svn.sourceforge.net/svnroot/forgetsql.
