@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-__version__ = "0.5.2"
+__version__ = "0.6.0-SNAPSHOT"
 
 ## Distributed under LGPL 2.1 or later
 ## (c) Stian Soiland-Reyes 2002-2015

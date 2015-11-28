@@ -13,7 +13,7 @@ setup(name="forgetSQL",
       version="0.6.0-SNAPSHOT",
       author="Stian Soiland-Reyes",
       author_email="stian@soiland-reyes.com",
-      url="https://github.com/stain/forgetsql/",
+      url="https://github.com/stain/forgetSQL/",
       license="LGPL",
       description=
 """forgetSQL is a Python module for accessing SQL databases by creating
