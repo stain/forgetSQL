@@ -256,7 +256,7 @@ Create a file `tables.txt`, with a list of database tables, one per
 line. (This is needed since there is no consistent way to query a
 database about it's tables)
 
-Then generate the module representing your tables::
+Then generate the module representing your tables:
 
     forgetsql-generate --dbmodule psycopg --username=johndoe
                          --password=Jens1PuLe --database=genious
@@ -276,7 +276,7 @@ different database passwords, connection details could be in a
 configuration file, you need persistent database connections, etc.
 
 The way to do this is to set `Genious._Wrapper.cursor` to a cursor
-method, and `Genious._Wrapper._dbModule` to the database module used::
+method, and `Genious._Wrapper._dbModule` to the database module used:
 
 ```Python
 import Genious
@@ -308,7 +308,7 @@ actually not loaded from the database until a attribute is read.
 (delayed loading) One problem with that is that `forgetSQL.NotFound`
 will not be raised until the attribute is read.
 
-To test if the primary key is valid, force a load::
+To test if the primary key is valid, force a load:
 
 ```python
 account = Account("stain")
@@ -393,25 +393,28 @@ If you changed an attribute, and you don't want to save the change to
 the database (as this will happen when the garbage collector kicks in),
 you have two choices:
 
-* reset the instance to a blank state::
+Reset the instance to a blank state:
 
-     group.reset()
+  ```python
+       group.reset()
+  ```
 
-  This sets everything to None, including the primary key.
-  If you have referenced the instance anywhere else, they
-  will now experience a blank instance.
+This sets everything to `None`, including the primary key.
+If you have referenced the instance anywhere else, they
+will now experience a blank instance.
 
-* reload from database::
+Or reload from database:
 
-    group.load()
-
-  Note, `load()` will perform a new SELECT.  
+```python
+group.load()
+```
+Note, `load()` will perform a new SELECT.  
 
 Note that you don't have to `reset()` if you haven't changed any
 attributes, the instance will only save if anything has changed.
 
 
-### Access foreign keys
+### Accessing foreign keys
 
 Example:
 
@@ -446,10 +449,10 @@ del account
 # will be saved by the garbage collector
 ```
 
-or to just the foreign primary key::
+or to just the foreign primary key:
 
 ```python
-    account.group = 18
+account.group = 18
 ```
 
 Note that this referencing magic makes JOIN unneccessary in many cases,
@@ -462,17 +465,17 @@ see _Wrapping SQL queries_.
 ### Finding foreign keys
 
 You might want to walk in reverse, finding all accounts that have a
-given group as a foreign key::
+given group as a foreign key:
 
 ```python
-    group = Group(15)
-    members = group.getChildren(Account)
+group = Group(15)
+members = group.getChildren(Account)
 ```
 
-This is equivalent to SQL::
+This is equivalent to SQL:
 
 ```sql
-    SELECT * FROM account WHERE groupid=15
+SELECT * FROM account WHERE groupid=15
 ```
 
 ### Deleting an instance
@@ -514,9 +517,9 @@ this approach. Most database modules have some form of escape functions.
 In many cases, what you want to do with WHERE is probably the
 same as with `getChildren()`:
 
-```
-    group = Group(17)
-    members = group.getChildren(Account)
+```python
+group = Group(17)
+members = group.getChildren(Account)
 ```
 
 This will be as effective as generating a WHERE-clasule, since
@@ -528,24 +531,24 @@ column names, not the attribute names. You can use AND and OR as you
 like.
 
 If you have several clauses to be AND-ed together, forgetSQL can do this
-for you, as the where-parameter can be a list::
+for you, as the where-parameter can be a list:
 
-    where = []
-    where.append("groupid=17")
-    if something:
-        where.append("fullname like 'Stian%'")
-    Account.getAll(where=where)
+```python
+where = []
+where.append("groupid=17")
+if something:
+    where.append("fullname like 'Stian%'")
+Account.getAll(where=where)
+```
 
-
-Sorting
-~~~~~~~
+### Sorting
 
 If you have specified `_orderBy` (see _Specializing the forgetters_),
 the results of `getAll*` and `getChildren` will be ordered by those
 attributes.
 
 If you want to specify ordering manually, you can supply a keyword
-argument to getAll::
+argument to getAll:
 
     all = Account.getAll(orderBy="fullname")
 
@@ -555,24 +558,27 @@ B, etc.). Note that you can only order by attributes defined in the
 given table.
 
 If you want some other fancy sorting, sort the list after retrieval
-using regular `list.sort()`::
+using regular `list.sort()`:
 
-    all = Account.getAll()
-    all.sort(lambda a,b:
-                cmp(a.split()[-1],
-                    b.split()[-1]))
-    # order by last name! :=)
+```python
+all = Account.getAll()
+all.sort(lambda a,b:
+            cmp(a.split()[-1],
+                b.split()[-1]))
+# order by last name! :=)
+```
 
 
-More getAll
-~~~~~~~~~~~
+### More getAll
 
 There are specialized `getAll` methods for different situations.
 
-If you just want the IDs in a table::
+If you just want the IDs in a table:
 
+```python
     >>> all = Account.getAllIDs()
     ['stornes', 'stain', 'magnun', 'mjaavatt']
+```
 
 The regular `getAll()` actually runs `getAllIDs()`, and returns a
 list of instances based on those IDs. The real data is not loaded
@@ -581,10 +587,12 @@ you want to call getChildren and really don't care about the attribute
 values.
 
 If you are going to iterate through the list, a common case, use
-instead::
+instead:
 
+```python
     for account in Account.getAllIterator():
         print account.fullname
+```
 
 This will return an iterator, not a list, returning `Account` objects.
 For each iteration, a new instance is returned, with all fields
@@ -593,35 +601,24 @@ contained.
 
 In Python, object creation is a bit expensive, so you might reuse the
 same object for each iteration by creating it first and specifying it
-as the keyword argument `useObject`::
+as the keyword argument `useObject`:
 
-    for account in Account.getAllIterator(useObject=Account()):
-        print account.fullname
+```python
+for account in Account.getAllIterator(useObject=Account()):
+    print account.fullname
+```
 
 Note that changes made to account in this case will be flushed unless
 you manually call `save()`. Do not pass this instance on, as it's content
 will change for each iteration.
 
-Finally, `getAllText()` will use `_shortView` (See `Specializing
-the forgetters`_) and return tupples of (id, text). This is useful for
+Finally, `getAllText()` will use `_shortView` (See _Specializing
+the forgetters_) and return tuples of (id, text). This is useful for
 a dropdown-list of selectors.
 
-Specializing the forgetters
----------------------------
-.. About specifying and correcting _sqlFields, etc.
 
-Sorry, this section is currently unfinished.
+# Specializing the forgetters
 
-Wrapping SQL queries
---------------------
-.. About joins, views, functions.
-
-Sorry, this section is currently unfinished.
-
-
-Framework suggestion
---------------------
-.. My suggestions for how you should wrap up things nicely,
-.. How to deal with database connections and extensions.
-
-Sorry, this section is currently unfinished.
+By specifying the `Forgetter` subclasses manually, or correcting
+the autogenerated ones from `forgetsql-generate`, you can fix any
+mistakes in `_sqlFields`, etc.
