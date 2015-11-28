@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-
 __version__ = "0.5.2"
 
-## Distributed under LGPL
-## (c) Stian Soiland 2002-2005
-## stian@soiland.no
-## http://forgetsql.sourceforge.net/
+## Distributed under LGPL 2.1 or later
+## (c) Stian Soiland-Reyes 2002-2015
+## stian@soiland-reyes.com
+## https://github.com/stain/forgetSQL
 
 
 import exceptions, time, re, types, sys
@@ -31,13 +30,13 @@ class Forgetter(object):
 
     Given a welldefined database, by subclassing Forgetter
     and supplying some attributes, you may wrap your SQL tables
-    into objects that are easier to program with. 
+    into objects that are easier to program with.
 
     You must define all fields in the database table that you want
     to expose, and you may refine the names to suit your
     object oriented programming style. (ie. customerID -> customer)
 
-    Objects will be created without loading from database, 
+    Objects will be created without loading from database,
     loading will occur when you try to read or write some of the
     attributes defined as a SQL field. If you change some attributes the
     object will be saved to the database by save() or garbage
@@ -48,8 +47,8 @@ class Forgetter(object):
     ID used for insertion.
 
     The rule is one class pr. table, although it is possible
-    to join several table into one class, as long as the 
-    identificator is unique. 
+    to join several table into one class, as long as the
+    identificator is unique.
 
     By defining _userClasses you can resolve links to other
     tables, a field in this table would be an id in another
@@ -58,7 +57,7 @@ class Forgetter(object):
     you will find instances of that class.
 
     Short example usage of forgetter objects::
-    
+
         # Process all
         for user in User.getAllIterator():
             # Access attributes
@@ -67,19 +66,19 @@ class Forgetter(object):
             # Access the Employed-class/table
             print user.employed.name, user.employed.address
             # fire him, setting employed reference to SQL NULL
-            user.employed = None 
-        
+            user.employed = None
+
         # Retrieve some ID
         shop = Shop(552)
         shop.name = 'Corrected name'
         shop.save()    # Save now instead of waiting for garbage collactor
-        
+
         # Include SQL where-statements in selections
         myIDs = User.getAllIDs(("name='soiland'", 'salary > 5'))
-    
 
-    Requirements: 
-    
+
+    Requirements:
+
     The attributes 'cursor' and '_dbModule' should be set from the
     outside.  The cursor should be DB 2.0 complient, preferably with
     autocommit turned on. (Transactions are not within the scope of this
@@ -97,18 +96,18 @@ class Forgetter(object):
     _sqlTable = ''
 
     # A mapping between our fields and the database fields.
-    # 
-    # You must include all fields needed here. You may specify 
+    #
+    # You must include all fields needed here. You may specify
     # other names if you want to make the sql name more approriate
-    # for object oriented programming. (Like calling a field 'location' 
+    # for object oriented programming. (Like calling a field 'location'
     # instead of 'location_id', because we wrap the location in a seperate
     # object and don't really care about the id)
-    # 
+    #
     # You may reference to other tables with a dot, all
     # other db fields will be related to _sqlTable.
     # If you reference other tables, don't forget to
     # modify _sqlLinks.
-    # 
+    #
     #    _sqlFields = {
     #        'id':     'shop_id',
     #        'name': 'name',
@@ -120,15 +119,15 @@ class Forgetter(object):
 
     # A list of attribute names (in the object, not database)
     # that are the primary key in the database. Normally
-    # 'id' is sufficient. It is legal to have 
+    # 'id' is sufficient. It is legal to have
     # multiple fields as primary key, but it won't work
     # properly with _userClasses and getChildren().
-    # 
+    #
     # If your table is a link table or something, ALL fields
     # should be in _sqlPrimary. (all fields are needed to define
-    # a unique row to be deleted/updated) 
+    # a unique row to be deleted/updated)
     _sqlPrimary = ('id',)
-    
+
     # When using several tables, you should include a
     # 'link' statement, displaying which fields link the
     # two tables together. Note that these are sql names.
@@ -146,7 +145,7 @@ class Forgetter(object):
     # _orderBy = 'name' - this could also be a tuple
     _orderBy = None
 
-    # _userClasses can be used to trigger creation of a field 
+    # _userClasses can be used to trigger creation of a field
     # with an instance of the class. The given database field
     # will be sent to the constructor as an objectID
     # (ie. as self.id in this object) (ie. the class does not
@@ -154,11 +153,11 @@ class Forgetter(object):
     #
     # This means that the attribute will be an instance of that
     # class, not the ID. The object will not be loaded from the
-    # database until you try to read any of it's attributes, 
+    # database until you try to read any of it's attributes,
     # though. (to prevent unneccessary database overload and
     # recursions)
-    # 
-    # Notice that _userClasses must be a name resolvable, ie. 
+    #
+    # Notice that _userClasses must be a name resolvable, ie.
     # from the same module as your other classes.
     #    _userClasses = {
     #        'location': 'Location',
@@ -172,14 +171,14 @@ class Forgetter(object):
     # names.    This must be done from the same module you are defining the
     # classes: forgetSQL.prepareClasses(locals())
 
-    # A list of fields that are suitable for a textual 
-    # representation (typical a one liner). 
-    # 
+    # A list of fields that are suitable for a textual
+    # representation (typical a one liner).
+    #
     # Fields will be joint together with spaces or
     # simular.
     # _shortView = ('name')
     _shortView = ()
- 
+
     # Description for the fields (ie. labels)
     # Note that these fields will be translated with the _ function.
     # If a field is undescribe, a capitalized version of the field name
@@ -194,14 +193,14 @@ class Forgetter(object):
         try:
             import database
             return database.cursor()
-        except:    
+        except:
             raise "cursor method undefined, no database connection could be made"
-    cursor = classmethod(cursor)    
+    cursor = classmethod(cursor)
 
-    # a reference to the database module object used, ie. 
-    # MySQLdb, psycopg etc. 
+    # a reference to the database module object used, ie.
+    # MySQLdb, psycopg etc.
     # Use MyClass._dbModule = MySQLdb - not "MySQLdb"
-    # 
+    #
     _dbModule = None
 
     # By default, autosave change when object is garbage collected.
@@ -210,7 +209,7 @@ class Forgetter(object):
     # explicitely when you want to save. By default, for backward
     # compatibility, autosave is on.
     _autosave = True
-    
+
     def __new__(cls, *args):
         if not hasattr(cls, '_cache'):
             cls._cache = {}
@@ -230,16 +229,16 @@ class Forgetter(object):
             updated = time.time()
         except "NotFound":
             # We'll need to create it
-            realObject = object.__new__(cls, *args)    
+            realObject = object.__new__(cls, *args)
             ref = weakref.ref(realObject)
         updated = time.time()
         # store a weak reference
-        cls._cache[args] = (ref, updated) 
+        cls._cache[args] = (ref, updated)
         return realObject
-            
+
     def __init__(self, *id):
-        """Initialize, possibly with a database id. 
-        
+        """Initialize, possibly with a database id.
+
         A forgetter with multivalue primary key (ie. _sqlPrimary more
         than 1 in length), may be initalized by using several parameters
         to this constructor.  Note that the object will not be loaded
@@ -249,10 +248,10 @@ class Forgetter(object):
         self.reset()
         if not id:
             self._resetID()
-        else:    
+        else:
             self._setID(id)
     def _setID(self, id):
-        """Set the ID, ie. the values for primary keys. 
+        """Set the ID, ie. the values for primary keys.
 
         id can be either a list, following the
         _sqlPrimary, or some other type, that will be set
@@ -272,8 +271,8 @@ class Forgetter(object):
             self.__dict__[key] = id
         else:
             raise 'Not enough id fields, required: %s' % len(self._sqlPrimary)
-        self._new = False    
-            
+        self._new = False
+
     def _getID(self):
         """Get the ID values as a tuple annotated by sqlPrimary"""
         id = []
@@ -291,7 +290,7 @@ class Forgetter(object):
             id.append(value)
         return id
 
-    def _resetID(self):    
+    def _resetID(self):
         """Reset all ID fields."""
         # Dirty.. .=))
         self._setID((None,) * len(self._sqlPrimary))
@@ -300,10 +299,10 @@ class Forgetter(object):
     def _validID(self):
         """Is all ID fields with values, ie. not None?"""
         return not None in self._getID()
-    
+
     def __getattr__(self, key):
         """Get an attribute, normally a SQL field value.
-        
+
         Will be called when an unknown key is to be
         retrieved, ie. most likely one of our database
         fields.
@@ -314,10 +313,10 @@ class Forgetter(object):
             return self._values[key]
         else:
             raise AttributeError, key
-            
+
     def __setattr__(self, key, value):
         """Set an attribute, normally a SQL field value.
-        
+
         Will be called whenever something needs to be set, so
         we store the value as a SQL-thingie unless the key
         is not listed in sqlFields.
@@ -330,13 +329,13 @@ class Forgetter(object):
         else:
             # It's a normal thingie
             self.__dict__[key] = value
-    
+
     def __del__(self):
-        """Save the object on deletion. 
-        
+        """Save the object on deletion.
+
         Be aware of this. If you want to undo some change, use reset()
         first.
-             
+
         Be aware of Python 2.2's garbage collector, that
         might run in the background. This means that
         unless you call save() changes might not
@@ -352,7 +351,7 @@ class Forgetter(object):
             self.save()
         except Exception, e:
             pass
-    
+
     def _checkTable(cls, field):
         """Split a field from _sqlFields into table, column.
 
@@ -364,7 +363,7 @@ class Forgetter(object):
             (table, field) = field.split('.')
         except ValueError:
             table = cls._sqlTable
-        # clean away white space 
+        # clean away white space
         table = table.strip()
         field = field.strip()
         # register table
@@ -372,7 +371,7 @@ class Forgetter(object):
         # and return in proper shape
         return table + '.' + field
 
-    _checkTable = classmethod(_checkTable)    
+    _checkTable = classmethod(_checkTable)
 
     def reset(self):
         """Reset all fields, almost like creating a new object.
@@ -397,24 +396,24 @@ class Forgetter(object):
             # We are asked to change our ID to something else
             self.reset()
             self._setID(id)
-        if not self._new and self._validID():    
+        if not self._new and self._validID():
             self._loadDB()
         self._updated = time.time()
-    
+
     def save(self):
         """Save to database if anything has changed since last load"""
-        if ( self._new or 
-            (self._validID() and self._changed) or 
+        if ( self._new or
+            (self._validID() and self._changed) or
             (self._updated and self._changed > self._updated) ):
             # Don't save if we have not loaded existing data!
             self._saveDB()
             return True
-        return False         
+        return False
 
     def delete(self):
-        """Mark this object for deletion in the database. 
+        """Mark this object for deletion in the database.
 
-        The object will then be reset and ready for use 
+        The object will then be reset and ready for use
         again with a new id.
         """
         (sql, ) = self._prepareSQL("DELETE")
@@ -422,7 +421,7 @@ class Forgetter(object):
         curs.execute(sql, self._getID())
         curs.close()
         self.reset()
-        
+
     def _prepareSQL(cls, operation="SELECT", where=None, selectfields=None, orderBy=None):
         """Return a sql for the given operation.
 
@@ -432,13 +431,13 @@ class Forgetter(object):
             INSERT         insert data, create new id
             UPDATE         update data for this id
             DELETE         remove data for this id
-            
+
         SQL will be built by data from _sqlFields, and will
         contain 0 or several %s for you to sprintf-format in later:
 
             SELECT --> len(cls._sqlPrimary)
             SELECTALL --> 0 %s
-            INSERT --> len(cls._sqlFields) %s (including id)    
+            INSERT --> len(cls._sqlFields) %s (including id)
             UPDATE --> len(cls._sqlFields) %s (including id)
             DELETE --> len(cls._sqlPrimary)
 
@@ -454,14 +453,14 @@ class Forgetter(object):
 
         Additional note: cls._nextSequence() MUST be overloaded
         for multi _sqlPrimary classes. Return a tuple.
-             
+
         Return values will always be tuples:
             SELECT --> (sql, fields)
             SELECTALL -> sql, fields)
             INSERT -> (sql, fields)
             UPDATE -> (sql, fields)
             DELETE -> (sql,)    -- for consistency
-        
+
         fields will be object properties as a list, ie. the keys from
         cls._sqlFields. The purpose of this list is to give the programmer
         an idea of which order the keys are inserted in the SQL, giving
@@ -474,16 +473,16 @@ class Forgetter(object):
 
         Optional where-parameter applies to SELECT, SELECTALL and DELETE.
         where should be a list or string of where clauses.
-             
-        """     
+
+        """
         # Normalize parameter for later comparissions
         operation = operation.upper()
         # Convert where to a list if it is a string
         if type(where) in (types.StringType, types.UnicodeType):
             where = (where,)
         if orderBy is None:
-            orderBy = cls._orderBy    
-        
+            orderBy = cls._orderBy
+
         if operation in ('SELECT', 'SELECTALL'):
             # Get the object fields and sql fields in the same
             # order to be able to reconstruct later.
@@ -495,13 +494,13 @@ class Forgetter(object):
                     sqlfields.append(sqlfield)
             if not fields:
                 # dirrrrrty!
-                raise """ERROR: No fields defined, cannot create SQL. 
+                raise """ERROR: No fields defined, cannot create SQL.
 Maybe sqlPrimary is invalid?
 Fields asked: %s
 My fields: %s""" % (selectfields, cls._sqlFields)
-                
+
             sql = "SELECT\n    "
-            sql += ', '.join(sqlfields)    
+            sql += ', '.join(sqlfields)
             sql += "\nFROM\n    "
             tables = cls._tables.keys()
             if not tables:
@@ -518,7 +517,7 @@ My fields: %s""" % (selectfields, cls._sqlFields)
                 # Make sure to use paranteses in case someone has used
                 # ORs in the WHERE-list..
                 sql += "\nWHERE\n ("
-                sql += ') AND\n    ('.join(tempWhere) 
+                sql += ') AND\n    ('.join(tempWhere)
                 sql += ')'
             if operation == 'SELECTALL' and orderBy:
                 sql += '\nORDER BY\n    '
@@ -529,13 +528,13 @@ My fields: %s""" % (selectfields, cls._sqlFields)
                     orderBy = cls._sqlFields[orderBy]
                 sql += orderBy
             return (sql, fields)
-                
+
         elif operation in ('INSERT', 'UPDATE'):
             if operation == 'UPDATE':
                 sql = 'UPDATE %s SET\n    ' % cls._sqlTable
             else:
                 sql = 'INSERT INTO %s (\n    ' % cls._sqlTable
-                
+
             set = []
             fields = []
             sqlfields = []
@@ -549,37 +548,37 @@ My fields: %s""" % (selectfields, cls._sqlFields)
                     sqlfields.append(sqlfield)
                     set.append(sqlfield + '=%s')
             if operation == 'UPDATE':
-                sql += ',\n    '.join(set)        
+                sql += ',\n    '.join(set)
                 sql += '\nWHERE\n    '
                 tempWhere = []
                 for key in cls._sqlPrimary:
                     tempWhere.append(cls._sqlFields[key] + "=%s")
                     fields.append(key)
-                sql += ' AND\n    '.join(tempWhere) 
+                sql += ' AND\n    '.join(tempWhere)
             else:
                 sql += ',\n    '.join(sqlfields)
                 sql += ')\nVALUES (\n    '
                 sql += ',\n    '.join(('%s',) * len(sqlfields))
                 sql += ')'
-                
+
             return (sql, fields)
-            
+
         elif operation == 'DELETE':
             sql = 'DELETE FROM ' + cls._sqlTable + ' WHERE '
             if where:
-                sql += " AND\n    ".join(where) 
+                sql += " AND\n    ".join(where)
             else:
                 for key in cls._sqlPrimary:
                     tempWhere = []
                     for key in cls._sqlPrimary:
                         tempWhere.append(cls._sqlFields[key] + "=%s")
-                sql += ' AND\n    '.join(tempWhere) 
-            return (sql, )            
+                sql += ' AND\n    '.join(tempWhere)
+            return (sql, )
         else:
             raise "Unknown operation", operation
-            
+
     _prepareSQL = classmethod(_prepareSQL)
-    
+
     def _nextSequence(cls, name=None):
         """Return a new sequence number for insertion in self._sqlTable.
 
@@ -604,11 +603,11 @@ My fields: %s""" % (selectfields, cls._sqlFields)
         return value
 
     _nextSequence = classmethod(_nextSequence)
- 
+
     def _loadFromRow(self, result, fields, cursor):
         """Load from a database row, described by fields.
 
-        ``fields`` should be the attribute names that 
+        ``fields`` should be the attribute names that
         will be set. Note that userclasses will be
         created (but not loaded).
         """
@@ -625,27 +624,27 @@ My fields: %s""" % (selectfields, cls._sqlFields)
                 userClass = self._userClasses[elem]
                 # create an instance
                 value = userClass(value)
-                
+
             self._values[elem] = value
             position += 1
 
-    def _loadDB(self):    
+    def _loadDB(self):
         """Connect to the database to load myself"""
         if not self._validID():
             raise NotFound, self._getID()
         (sql, fields) = self._prepareSQL("SELECT")
         curs = self.cursor()
-        curs.execute(sql, self._getID()) 
+        curs.execute(sql, self._getID())
         result = curs.fetchone()
         if not result:
             curs.close()
             raise NotFound, self._getID()
-        self._loadFromRow(result, fields, curs)    
+        self._loadFromRow(result, fields, curs)
         curs.close()
         self._updated = time.time()
-    
+
     def _saveDB(self):
-        """Insert or update into the database. 
+        """Insert or update into the database.
 
         Note that every field will be updated, not just the changed
         one.
@@ -664,11 +663,11 @@ My fields: %s""" % (selectfields, cls._sqlFields)
             # yet.
             #
             # Since mysql does not have Sequences, this will
-            # not work as smoothly there. See class 
+            # not work as smoothly there. See class
             # MysqlForgetter below.
         else:
             operation = 'UPDATE'
-        (sql, fields) = self._prepareSQL(operation)    
+        (sql, fields) = self._prepareSQL(operation)
         values = []
         for field in fields:
             value = getattr(self, field)
@@ -680,31 +679,31 @@ My fields: %s""" % (selectfields, cls._sqlFields)
             if DateTime and type(value) == DateTime.DateTimeDeltaType:
                 # Format delta as days, hours, minutes seconds
                 # NOTE: includes value.second directly to get the
-                # whole floating number 
+                # whole floating number
                 value = value.strftime("%d %H:%M:") + str(value.second)
             if value is True or value is False:
-                # We must store booleans as 't' and 'f' ...    
+                # We must store booleans as 't' and 'f' ...
                 value = value and 't' or 'f'
             if isinstance(value, Forgetter):
                 # It's another object, we store only the ID
                 if value._new:
                     # It's a new object too, it must be saved!
                     value.save()
-                try:    
+                try:
                     (value,) = value._getID()
                 except:
                     raise "Unsupported: Can't reference multiple-primary-key: %s" % value
-            values.append(value)    
+            values.append(value)
         cursor = self.cursor()
         cursor.execute(sql, values)
         # cursor.commit()
         cursor.close()
         self._new = False
         self._changed = None
-    
+
     def getAll(cls, where=None, orderBy=None):
         """Retrieve all the objects.
-        
+
         If a list of ``where`` clauses are given, they will be AND-ed
         and will limit the search.
 
@@ -720,31 +719,31 @@ My fields: %s""" % (selectfields, cls._sqlFields)
         else:
             return [cls(id) for id in ids]
 
-        
-    getAll = classmethod(getAll)    
-    
-    def getAllIterator(cls, where=None, buffer=100, 
+
+    getAll = classmethod(getAll)
+
+    def getAllIterator(cls, where=None, buffer=100,
                                          useObject=None, orderBy=None):
         """Retrieve every object as an iterator.
-        
+
         Possibly limitted by the where list of clauses that will be
-        AND-ed. 
-        
+        AND-ed.
+
         Since an iterator is returned, only ``buffer`` rows are loaded
         from the database at once. This is useful if you need
-        to process all objects. 
-        
+        to process all objects.
+
         If useObject is given, this object is returned each time, but
         with new data. This can be used to avoid creating many new
         objects when only one object is needed each time.
-        """ 
+        """
         (sql, fields) = cls._prepareSQL("SELECTALL", where, orderBy=orderBy)
         curs = cls.cursor()
         fetchedAt = time.time()
         curs.execute(sql)
 
         # We might start eating memory at this point
-        
+
         def getNext(rows=[]):
             forgetter = cls
             if not rows:
@@ -763,19 +762,19 @@ My fields: %s""" % (selectfields, cls._sqlFields)
                 result = useObject
                 result.reset()
                 result._setID(ids)
-            else:    
+            else:
                 result = forgetter(*ids)
             result._loadFromRow(row, fields, curs)
             result._updated = fetchedAt
             return result
-        
+
         return iter(getNext, None)
 
     getAllIterator = classmethod(getAllIterator)
 
     def getAllIDs(cls, where=None, orderBy=None):
-        """Retrive all the IDs, possibly matching the where clauses. 
-        
+        """Retrive all the IDs, possibly matching the where clauses.
+
         Where should be some list of where clauses that will be joined
         with AND). Note that the result might be tuples if this table
         has a multivalue _sqlPrimary.
@@ -787,21 +786,21 @@ My fields: %s""" % (selectfields, cls._sqlFields)
         # We might start eating memory at this point
         rows = curs.fetchall()
         curs.close()
-        result = [] 
+        result = []
         idPositions = [fields.index(key) for key in cls._sqlPrimary]
-        for row in rows: 
+        for row in rows:
             ids = [row[pos] for pos in idPositions]
             if len(idPositions) > 1:
                 ids = tuple(ids)
             else:
                 ids = ids[0]
             result.append((ids))
-        return result    
-        
+        return result
+
     getAllIDs = classmethod(getAllIDs)
 
     def getAllText(cls, where=None, SEPERATOR=' ', orderBy=None):
-        """Retrieve a list of of all possible instances of this class. 
+        """Retrieve a list of of all possible instances of this class.
 
         The list is composed of tuples in the format (id, description) -
         where description is a string composed by the fields from
@@ -813,10 +812,10 @@ My fields: %s""" % (selectfields, cls._sqlFields)
         # We might start eating memory at this point
         rows = curs.fetchall()
         curs.close()
-        result = []    
+        result = []
         idPositions = [fields.index(key) for key in cls._sqlPrimary]
         shortPos = [fields.index(short) for short in cls._shortView]
-        for row in rows: 
+        for row in rows:
             ids = [row[pos] for pos in idPositions]
             if len(idPositions) > 1:
                 ids = tuple(ids)
@@ -824,12 +823,12 @@ My fields: %s""" % (selectfields, cls._sqlFields)
                 ids = ids[0]
             text = SEPERATOR.join([str(row[pos]) for pos in shortPos])
             result.append((ids, text))
-        return result    
+        return result
 
-    getAllText = classmethod(getAllText)    
-    
+    getAllText = classmethod(getAllText)
+
     def getChildren(self, forgetter, field=None, where=None, orderBy=None):
-        """Return the children that links to me. 
+        """Return the children that links to me.
 
         That means that I have to be listed in their _userClasses
         somehow. If field is specified, that field in my children is
@@ -838,7 +837,7 @@ My fields: %s""" % (selectfields, cls._sqlFields)
         """
         if type(where) in (types.StringType, types.UnicodeType):
             where = (where,)
-            
+
         if not field:
             for (i_field, i_class) in forgetter._userClasses.items():
                 if isinstance(self, i_class):
@@ -846,18 +845,18 @@ My fields: %s""" % (selectfields, cls._sqlFields)
                     break # first one found is ok :=)
         if not field:
             raise "No field found, check forgetter's _userClasses"
-        sqlname = forgetter._sqlFields[field]    
+        sqlname = forgetter._sqlFields[field]
         myID = self._getID()[0] # assuming single-primary !
-        
+
         whereList = ["%s='%s'" % (sqlname, myID)]
         if where:
             whereList.extend(where)
-        
+
         return forgetter.getAll(whereList, orderBy=orderBy)
-        
+
     def __repr__(self):
         return self.__class__.__name__ + ' %s' % self._getID()
-    
+
     def __str__(self):
         shortView = self._shortView or self._sqlPrimary
         short = [str(getattr(self, short)) for short in shortView]
@@ -881,7 +880,7 @@ class MysqlForgetter(Forgetter):
             operation = 'INSERT'
         else:
             operation = 'UPDATE'
-        (sql, fields) = self._prepareSQL(operation)    
+        (sql, fields) = self._prepareSQL(operation)
         values = []
         for field in fields:
             value = getattr(self, field)
@@ -890,7 +889,7 @@ class MysqlForgetter(Forgetter):
                 if value._new:
                     # It's a new object too, it must be saved!
                     value.save()
-                try:    
+                try:
                     (value,) = value._getID()
                 except:
                     raise "Can't reference multiple-primary-key: %s" % value
@@ -911,7 +910,7 @@ def prepareClasses(locals):
     """Fix _userClasses and some stuff in classes.
 
     Traverses locals, which is a locals() dictionary from
-    the namespace where Forgetter subclasses have been 
+    the namespace where Forgetter subclasses have been
     defined, and resolves names in _userClasses to real
     class-references.
 
@@ -925,19 +924,19 @@ def prepareClasses(locals):
                 issubclass(forgetter, Forgetter)):
             # Only care about Forgetter objects
             continue
-            
+
         # Resolve classes
         for (key, userclass) in forgetter._userClasses.items():
             if type(userclass) is types.StringType:
                 # resolve from locals
                 resolved = locals[userclass]
                 forgetter._userClasses[key] = resolved
-                
+
         forgetter._tables = {}
         # Update all fields with proper names
         for (field, sqlfield) in forgetter._sqlFields.items():
             forgetter._sqlFields[field] = forgetter._checkTable(sqlfield)
-        
+
         newLinks = []
         for linkpair in forgetter._sqlLinks:
             (link1, link2) = linkpair
@@ -947,4 +946,3 @@ def prepareClasses(locals):
 
         forgetter._sqlLinks = newLinks
         forgetter._prepared = 1
-
