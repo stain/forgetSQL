@@ -10,10 +10,10 @@ if os.geteuid() == 0:
     os.umask(0022)
 
 setup(name="forgetSQL",
-      version="0.5.1",
-      author="Stian Soiland",
-      author_email="stian@soiland.no",
-      url="http://forgetsql.sourceforge.net/",
+      version="0.6.0-SNAPSHOT",
+      author="Stian Soiland-Reyes",
+      author_email="stian@soiland-reyes.com",
+      url="https://github.com/stain/forgetsql/",
       license="LGPL",
       description=
 """forgetSQL is a Python module for accessing SQL databases by creating
