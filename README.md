@@ -548,9 +548,11 @@ the results of `getAll*` and `getChildren` will be ordered by those
 attributes.
 
 If you want to specify ordering manually, you can supply a keyword
-argument to getAll:
+argument to `getAll``:
 
-    all = Account.getAll(orderBy="fullname")
+```python
+all = Account.getAll(orderBy="fullname")
+```
 
 The value of `orderBy` could be either a string (representing the
 object attribute to be sorted) or a tupple of strings (order by A, then
@@ -576,8 +578,8 @@ There are specialized `getAll` methods for different situations.
 If you just want the IDs in a table:
 
 ```python
-    >>> all = Account.getAllIDs()
-    ['stornes', 'stain', 'magnun', 'mjaavatt']
+>>> all = Account.getAllIDs()
+['stornes', 'stain', 'magnun', 'mjaavatt']
 ```
 
 The regular `getAll()` actually runs `getAllIDs()`, and returns a
@@ -590,8 +592,8 @@ If you are going to iterate through the list, a common case, use
 instead:
 
 ```python
-    for account in Account.getAllIterator():
-        print account.fullname
+for account in Account.getAllIterator():
+    print account.fullname
 ```
 
 This will return an iterator, not a list, returning `Account` objects.
